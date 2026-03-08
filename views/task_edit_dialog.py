@@ -4,6 +4,7 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QComboBox,
     QDialogButtonBox, QCompleter, QMessageBox, QPushButton, QHBoxLayout,
+    QCheckBox,
 )
 from PySide6.QtCore import Qt, QModelIndex, QSize
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QColor, QIcon
@@ -101,6 +102,7 @@ class TaskEditDialog(QDialog):
                  projects: list[Project],
                  task_history: list[tuple[str, str | None]] | None = None,
                  allow_delete: bool = False,
+                 require_confirm: bool = False,
                  parent=None):
         super().__init__(parent)
         self._projects = projects
@@ -168,6 +170,13 @@ class TaskEditDialog(QDialog):
         self._start_edit.editingFinished.connect(lambda: self._normalize_field(self._start_edit))
         self._end_edit.editingFinished.connect(lambda: self._normalize_field(self._end_edit))
 
+        # Confirm checkbox (for dangerous bulk operations)
+        self._confirm_check: QCheckBox | None = None
+        if require_confirm:
+            self._confirm_check = QCheckBox("全日付の同名タスクに適用することを確認")
+            self._confirm_check.setStyleSheet("color: #E74C3C;")
+            layout.addRow(self._confirm_check)
+
         # Buttons
         btn_layout = QHBoxLayout()
         if allow_delete:
@@ -183,6 +192,12 @@ class TaskEditDialog(QDialog):
         buttons.rejected.connect(self.reject)
         btn_layout.addWidget(buttons)
         layout.addRow(btn_layout)
+
+        # Disable OK until checkbox is checked
+        if self._confirm_check is not None:
+            self._ok_btn = buttons.button(QDialogButtonBox.StandardButton.Ok)
+            self._ok_btn.setEnabled(False)
+            self._confirm_check.toggled.connect(self._ok_btn.setEnabled)
 
         self._start_ref = start_time
         self._end_ref = end_time
@@ -262,4 +277,168 @@ class TaskEditDialog(QDialog):
             "project_id": project_id,
             "start_time": start,
             "end_time": end,
+        }
+
+
+class ProjectEditDialog(QDialog):
+    """Dialog for editing a project's name and color, with optional delete."""
+
+    def __init__(self, name: str, color: str, allow_delete: bool = False, parent=None):
+        super().__init__(parent)
+        self._deleted = False
+        self.setWindowTitle("プロジェクト編集")
+        self.setMinimumWidth(280)
+
+        layout = QFormLayout(self)
+
+        self._name_edit = QLineEdit(name)
+        layout.addRow("プロジェクト名:", self._name_edit)
+
+        self._color = color
+        self._color_btn = QPushButton()
+        self._color_btn.setFixedHeight(28)
+        self._update_color_button()
+        self._color_btn.clicked.connect(self._on_pick_color)
+        layout.addRow("色:", self._color_btn)
+
+        btn_layout = QHBoxLayout()
+        if allow_delete:
+            delete_btn = QPushButton("削除")
+            delete_btn.setStyleSheet("color: #E74C3C;")
+            delete_btn.clicked.connect(self._on_delete)
+            btn_layout.addWidget(delete_btn)
+        btn_layout.addStretch()
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        btn_layout.addWidget(buttons)
+        layout.addRow(btn_layout)
+
+    def _update_color_button(self):
+        self._color_btn.setStyleSheet(
+            f"background-color: {self._color}; border: 1px solid #555; border-radius: 3px;"
+        )
+
+    def _on_pick_color(self):
+        from views.color_picker_dialog import ColorPickerDialog
+        dlg = ColorPickerDialog(self._color, self)
+        if dlg.exec() == ColorPickerDialog.DialogCode.Accepted:
+            self._color = dlg.selected_color()
+            self._update_color_button()
+
+    @property
+    def deleted(self) -> bool:
+        return self._deleted
+
+    def _on_delete(self):
+        reply = QMessageBox.question(
+            self, "確認", "このプロジェクトを削除しますか？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._deleted = True
+            self.accept()
+
+    def get_result(self) -> dict | None:
+        name = self._name_edit.text().strip()
+        if not name:
+            return None
+        return {"name": name, "color": self._color}
+
+
+class RoutineEditDialog(QDialog):
+    """Dialog for editing a routine's name, times, and project, with optional delete."""
+
+    _color_icon = staticmethod(_make_color_icon)
+
+    def __init__(self, name: str, start_hour: int, start_minute: int,
+                 end_hour: int, end_minute: int, project_id: str | None,
+                 projects: list[Project], allow_delete: bool = False, parent=None):
+        super().__init__(parent)
+        self._projects = projects
+        self._deleted = False
+        self.setWindowTitle("ルーティン編集")
+        self.setMinimumWidth(300)
+
+        layout = QFormLayout(self)
+
+        self._name_edit = QLineEdit(name)
+        layout.addRow("タスク名:", self._name_edit)
+
+        self._start_edit = QLineEdit(f"{start_hour:02d}:{start_minute:02d}")
+        self._start_edit.setPlaceholderText("HH:MM")
+        layout.addRow("開始:", self._start_edit)
+
+        self._end_edit = QLineEdit(f"{end_hour:02d}:{end_minute:02d}")
+        self._end_edit.setPlaceholderText("HH:MM")
+        layout.addRow("終了:", self._end_edit)
+
+        self._project_combo = QComboBox()
+        self._project_combo.addItem("(なし)", None)
+        selected_index = 0
+        for i, p in enumerate(projects):
+            self._project_combo.addItem(self._color_icon(p.color), p.name, p.id)
+            if p.id == project_id:
+                selected_index = i + 1
+        self._project_combo.setCurrentIndex(selected_index)
+        layout.addRow("プロジェクト:", self._project_combo)
+
+        btn_layout = QHBoxLayout()
+        if allow_delete:
+            delete_btn = QPushButton("削除")
+            delete_btn.setStyleSheet("color: #E74C3C;")
+            delete_btn.clicked.connect(self._on_delete)
+            btn_layout.addWidget(delete_btn)
+        btn_layout.addStretch()
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        btn_layout.addWidget(buttons)
+        layout.addRow(btn_layout)
+
+    @property
+    def deleted(self) -> bool:
+        return self._deleted
+
+    def _on_delete(self):
+        reply = QMessageBox.question(
+            self, "確認", "このルーティンを削除しますか？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._deleted = True
+            self.accept()
+
+    def _on_accept(self):
+        start = parse_time_text(self._start_edit.text())
+        end = parse_time_text(self._end_edit.text())
+        if start is None or end is None:
+            QMessageBox.warning(self, "入力エラー", "時刻の形式が正しくありません。\n例: 9:30, 14:05")
+            return
+        if (start[0], start[1]) >= (end[0], end[1]):
+            QMessageBox.warning(self, "入力エラー", "開始時刻は終了時刻より前にしてください。")
+            return
+        self.accept()
+
+    def get_result(self) -> dict | None:
+        name = self._name_edit.text().strip()
+        if not name:
+            return None
+        start = parse_time_text(self._start_edit.text())
+        end = parse_time_text(self._end_edit.text())
+        if start is None or end is None:
+            return None
+        if (start[0], start[1]) >= (end[0], end[1]):
+            return None
+        return {
+            "name": name,
+            "project_id": self._project_combo.currentData(),
+            "start_hour": start[0],
+            "start_minute": start[1],
+            "end_hour": end[0],
+            "end_minute": end[1],
         }

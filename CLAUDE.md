@@ -30,6 +30,7 @@ tracker/
 │   ├── date_nav_widget.py    # 日付ナビゲーション (◀/今日/▶ + カレンダー)
 │   ├── routine_view.py       # 定期タスク管理 (ルーティン登録・ワンクリック追加)
 │   ├── export_view.py        # 出力タブ (テキストエクスポート・クリップボードコピー)
+│   ├── report_view.py        # レポートタブ (ReportView/ReportsView/ReportsByDayView、JSON出力対応)
 │   └── settings_view.py      # 設定画面 (スナップ・表示範囲・テーマ・通知)
 ├── controllers/
 │   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict)
@@ -168,6 +169,16 @@ tracker/
 - [x] タスクリストで複数選択 → 右クリック「一括編集」（名前・プロジェクトをまとめて変更）
 - [x] タイマー開始時に表示日が今日でなければ自動で今日に切り替え
 
+### Phase 2.5: GUI レポート・JSON出力（動作確認済み）
+- [x] views/report_view.py 新規作成 (ReportView / ReportsView / ReportsByDayView)
+- [x] ReportView: 1日レポート (リアルタイム更新、内訳チェック、JSONチェック、コピーボタン)
+- [x] ReportsView: 期間集計レポート (QDateEdit×2 + 更新ボタン、DB直接参照)
+- [x] ReportsByDayView: 日別レポート (QDateEdit×2 + 更新ボタン、DB直接参照)
+- [x] main_window.py 下部タブに「レポート」「全レポート」「日毎レポート」追加
+- [x] controller に set_report_view 追加 (ExportView と同タイミングでリアルタイム更新)
+- [x] CLI 全レポートコマンドに --json オプション追加 (report/reports/reports-by-day)
+- [x] cli.py に _format_report_table (テキスト返却) / _totals_to_json_list (JSON変換) を新設
+
 ## 起動方法
 ```
 # GUI
@@ -178,9 +189,9 @@ kousu-kanri.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>
 kousu-kanri.exe list [--date <YYYY-MM-DD>] [--yesterday]
 kousu-kanri.exe add-project <name> [--color <#HEX>]
 kousu-kanri.exe list-projects
-kousu-kanri.exe report [--date <YYYY-MM-DD>] [--yesterday]
-kousu-kanri.exe reports [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>]
-kousu-kanri.exe reports-by-day [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>]
+kousu-kanri.exe report [--date <YYYY-MM-DD>] [--yesterday] [--detail] [--json]
+kousu-kanri.exe reports [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>] [--detail] [--json]
+kousu-kanri.exe reports-by-day [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>] [--detail] [--json]
 ```
 
 ### 開発時

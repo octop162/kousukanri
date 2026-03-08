@@ -15,6 +15,7 @@ from views.timer_widget import TimerWidget
 from views.date_nav_widget import DateNavWidget
 from views.routine_view import RoutineView
 from views.export_view import ExportView
+from views.report_view import ReportView, ReportsView, ReportsByDayView
 
 
 class MainWindow(QMainWindow):
@@ -25,6 +26,9 @@ class MainWindow(QMainWindow):
                  date_nav_widget: DateNavWidget = None,
                  routine_view: RoutineView = None,
                  export_view: ExportView = None,
+                 report_view: ReportView = None,
+                 reports_view: ReportsView = None,
+                 reports_by_day_view: ReportsByDayView = None,
                  parent=None):
         super().__init__(parent)
         self.setWindowTitle("KousuKanri")
@@ -88,6 +92,12 @@ class MainWindow(QMainWindow):
         lower_tab_widget.addTab(project_list_view, "プロジェクト")
         if export_view is not None:
             lower_tab_widget.addTab(export_view, "出力")
+        if report_view is not None:
+            lower_tab_widget.addTab(report_view, "レポート")
+        if reports_view is not None:
+            lower_tab_widget.addTab(reports_view, "全レポート")
+        if reports_by_day_view is not None:
+            lower_tab_widget.addTab(reports_by_day_view, "日毎レポート")
         lower_tab_widget.addTab(settings_view, "設定")
 
         right_splitter = QSplitter(Qt.Orientation.Vertical)

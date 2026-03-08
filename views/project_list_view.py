@@ -82,8 +82,8 @@ class ProjectListView(QWidget):
         layout.addLayout(form)
 
         # ── Table ──
-        self._table = _ReorderTableWidget(0, 3)
-        self._table.setHorizontalHeaderLabels(["プロジェクト名", "色", ""])
+        self._table = _ReorderTableWidget(0, 1)
+        self._table.setHorizontalHeaderLabels(["プロジェクト名"])
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -91,10 +91,8 @@ class ProjectListView(QWidget):
 
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
-        self._table.cellClicked.connect(self._on_cell_clicked)
+        self._table.doubleClicked.connect(self._on_double_clicked)
         self._table.row_dropped.connect(self._on_row_dropped)
         layout.addWidget(self._table)
 
@@ -119,27 +117,26 @@ class ProjectListView(QWidget):
         self._name_edit.clear()
         self.project_created.emit(project)
 
-    def _on_cell_clicked(self, row: int, col: int):
+    def _on_double_clicked(self, index):
+        row = index.row()
         if row < 0 or row >= len(self._projects):
             return
         project = self._projects[row]
 
-        if col == 1:
-            # Color swatch clicked → pick new color
-            from views.color_picker_dialog import ColorPickerDialog
-            dlg = ColorPickerDialog(project.color, self)
-            if dlg.exec() == ColorPickerDialog.DialogCode.Accepted:
-                project.color = dlg.selected_color()
-                self._update_row(row, project)
-                self.project_changed.emit(project)
-        elif col == 2:
-            # Delete button clicked
-            reply = QMessageBox.question(
-                self, "確認", f"プロジェクト「{project.name}」を削除しますか？",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                self.project_deleted.emit(project.id)
+        from views.task_edit_dialog import ProjectEditDialog
+        dlg = ProjectEditDialog(project.name, project.color, allow_delete=True, parent=self)
+        if dlg.exec() != ProjectEditDialog.DialogCode.Accepted:
+            return
+        if dlg.deleted:
+            self.project_deleted.emit(project.id)
+            return
+        result = dlg.get_result()
+        if result is None:
+            return
+        project.name = result["name"]
+        project.color = result["color"]
+        self._update_row(row, project)
+        self.project_changed.emit(project)
 
     def _on_row_dropped(self, src: int, dest: int):
         """Move project from src to dest in the list and rebuild table."""
@@ -197,12 +194,8 @@ class ProjectListView(QWidget):
         self._update_row(row, project)
 
     def _update_row(self, row: int, project: Project):
-        self._table.setItem(row, 0, QTableWidgetItem(project.name))
-
-        color_item = QTableWidgetItem("  ")
-        color_item.setBackground(QBrush(QColor(project.color)))
-        self._table.setItem(row, 1, color_item)
-
-        del_item = QTableWidgetItem("×")
-        del_item.setTextAlignment(0x0084)  # AlignCenter
-        self._table.setItem(row, 2, del_item)
+        item = QTableWidgetItem(project.name)
+        bg = QColor(project.color)
+        bg.setAlpha(80)
+        item.setBackground(QBrush(bg))
+        self._table.setItem(row, 0, item)

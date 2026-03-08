@@ -143,7 +143,8 @@ class TaskListView(QWidget):
         dlg = TaskEditDialog(
             task.name, task.project_id,
             task.start_time, task.end_time,
-            self._projects, task_history=history, parent=self,
+            self._projects, task_history=history,
+            require_confirm=True, parent=self,
         )
         dlg.setWindowTitle("同名タスクを一括編集")
         if dlg.exec() != TaskEditDialog.DialogCode.Accepted:

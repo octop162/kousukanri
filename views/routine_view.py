@@ -48,6 +48,7 @@ class RoutineView(QWidget):
 
     task_add_requested = Signal(Task)
     routine_created = Signal(Routine)
+    routine_changed = Signal(Routine)
     routine_deleted = Signal(str)
     routine_order_changed = Signal(list)  # list[Routine] in new order
 
@@ -93,9 +94,9 @@ class RoutineView(QWidget):
         layout.addLayout(row2)
 
         # Routine table
-        self._table = _ReorderTableWidget(0, 6)
+        self._table = _ReorderTableWidget(0, 5)
         self._table.setHorizontalHeaderLabels(
-            ["", "名前", "開始", "終了", "プロジェクト", ""]
+            ["", "名前", "開始", "終了", "プロジェクト"]
         )
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -108,13 +109,13 @@ class RoutineView(QWidget):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self._table.setColumnWidth(4, 100)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
         self._table.setStyleSheet(
             "QTableWidget::item:selected { background: rgba(38, 79, 120, 100); }"
         )
 
         self._table.cellClicked.connect(self._on_cell_clicked)
+        self._table.doubleClicked.connect(self._on_double_clicked)
         self._table.row_dropped.connect(self._on_row_dropped)
         layout.addWidget(self._table)
 
@@ -233,10 +234,6 @@ class RoutineView(QWidget):
             proj_item.setBackground(QBrush(bg))
         self._table.setItem(row, 4, proj_item)
 
-        del_item = QTableWidgetItem("×")
-        del_item.setTextAlignment(int(Qt.AlignmentFlag.AlignCenter))
-        self._table.setItem(row, 5, del_item)
-
     def _on_row_dropped(self, src: int, dest: int):
         if src < 0 or src >= len(self._routines) or dest < 0 or dest >= len(self._routines):
             return
@@ -250,19 +247,42 @@ class RoutineView(QWidget):
     def _on_cell_clicked(self, row: int, col: int):
         if row < 0 or row >= len(self._routines):
             return
-        routine = self._routines[row]
         if col == 0:
-            self._add_routine_as_task(routine)
-        elif col == 5:
-            reply = QMessageBox.question(
-                self, "確認",
-                f"ルーティン「{routine.name}」を削除しますか？",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                removed = self._routines.pop(row)
-                self._rebuild_table()
-                self.routine_deleted.emit(removed.id)
+            self._add_routine_as_task(self._routines[row])
+
+    def _on_double_clicked(self, index):
+        row = index.row()
+        col = index.column()
+        if row < 0 or row >= len(self._routines):
+            return
+        if col == 0:
+            return  # "＋" column — handled by cellClicked
+        routine = self._routines[row]
+
+        from views.task_edit_dialog import RoutineEditDialog
+        dlg = RoutineEditDialog(
+            routine.name, routine.start_hour, routine.start_minute,
+            routine.end_hour, routine.end_minute, routine.project_id,
+            self._projects, allow_delete=True, parent=self,
+        )
+        if dlg.exec() != RoutineEditDialog.DialogCode.Accepted:
+            return
+        if dlg.deleted:
+            removed = self._routines.pop(row)
+            self._rebuild_table()
+            self.routine_deleted.emit(removed.id)
+            return
+        result = dlg.get_result()
+        if result is None:
+            return
+        routine.name = result["name"]
+        routine.project_id = result["project_id"]
+        routine.start_hour = result["start_hour"]
+        routine.start_minute = result["start_minute"]
+        routine.end_hour = result["end_hour"]
+        routine.end_minute = result["end_minute"]
+        self._update_row(row, routine)
+        self.routine_changed.emit(routine)
 
     def _add_routine_as_task(self, routine: Routine):
         """Open TaskEditDialog pre-filled with routine data, then emit task_add_requested."""

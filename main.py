@@ -12,6 +12,7 @@ from views.timer_widget import TimerWidget
 from views.date_nav_widget import DateNavWidget
 from views.routine_view import RoutineView
 from views.export_view import ExportView
+from views.report_view import ReportView, ReportsView, ReportsByDayView
 from views.main_window import MainWindow
 from controllers.task_controller import TaskController
 
@@ -60,6 +61,9 @@ def main():
     date_nav_widget = DateNavWidget()
     routine_view = RoutineView()
     export_view = ExportView()
+    report_view = ReportView()
+    reports_view = ReportsView(database=db)
+    reports_by_day_view = ReportsByDayView(database=db)
     controller = TaskController(scene, database=db)
     controller.set_list_view(list_view)
     controller.set_project_list_view(project_list_view)
@@ -67,8 +71,9 @@ def main():
     controller.set_date_nav_widget(date_nav_widget)
     controller.set_routine_view(routine_view)
     controller.set_export_view(export_view)
+    controller.set_report_view(report_view)
 
-    window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view)
+    window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view, report_view, reports_view, reports_by_day_view)
     window.set_controller(controller)
     if "--minimized" in sys.argv:
         window.hide()  # トレイのみ表示、ウィンドウは非表示

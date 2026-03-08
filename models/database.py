@@ -193,6 +193,15 @@ class Database:
             for r in rows
         ]
 
+    def update_routine(self, routine: Routine):
+        self._conn.execute(
+            "UPDATE routines SET name=?, project_id=?, start_hour=?, start_minute=?, "
+            "end_hour=?, end_minute=?, sort_order=? WHERE id=?",
+            (routine.name, routine.project_id, routine.start_hour, routine.start_minute,
+             routine.end_hour, routine.end_minute, routine.order, routine.id),
+        )
+        self._conn.commit()
+
     def update_routine_orders(self, routines: list[Routine]):
         """Bulk-update sort_order for all routines."""
         self._conn.executemany(

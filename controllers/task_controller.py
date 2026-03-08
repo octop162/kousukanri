@@ -20,7 +20,7 @@ class UndoAction:
     """
     kind: str              # "task_insert" | "task_update" | "task_delete" | "task_bulk_update" |
                            # "project_insert" | "project_update" | "project_delete" | "project_bulk_update" |
-                           # "routine_insert" | "routine_delete"
+                           # "routine_insert" | "routine_update" | "routine_delete"
     snapshots: list        # [(before: T|None, after: T|None), ...]
     affected_date: date | None = None
 
@@ -45,6 +45,7 @@ class TaskController(QObject):
         self._date_nav_widget = None
         self._routine_view = None
         self._export_view = None
+        self._report_view = None
         self._routines: list[Routine] = []
 
         # 直前の操作1つだけ保持。Undo実行後はNoneになり2回目は無効
@@ -106,6 +107,7 @@ class TaskController(QObject):
         self._routine_view = routine_view
         routine_view.task_add_requested.connect(self._on_task_add_requested)
         routine_view.routine_created.connect(self._on_routine_created)
+        routine_view.routine_changed.connect(self._on_routine_changed)
         routine_view.routine_deleted.connect(self._on_routine_deleted)
         routine_view.routine_order_changed.connect(self._on_routine_order_changed)
 
@@ -114,11 +116,26 @@ class TaskController(QObject):
         self._export_view = export_view
         self._refresh_export_view()
 
+    def set_report_view(self, report_view):
+        """Connect a ReportView for daily report."""
+        self._report_view = report_view
+        self._refresh_report_view()
+
     def _refresh_export_view(self):
-        """Push current tasks and projects to the export view."""
-        if self._export_view is None:
+        """Push current tasks and projects to the export view and report view."""
+        if self._export_view is not None:
+            self._export_view.update_tasks(
+                list(self._tasks.values()),
+                self._sorted_projects(),
+                self._current_date,
+            )
+        self._refresh_report_view()
+
+    def _refresh_report_view(self):
+        """Push current tasks and projects to the report view."""
+        if self._report_view is None:
             return
-        self._export_view.update_tasks(
+        self._report_view.update_tasks(
             list(self._tasks.values()),
             self._sorted_projects(),
             self._current_date,
@@ -206,6 +223,14 @@ class TaskController(QObject):
             self._routines = [r for r in self._routines if r.id != after.id]
             if self._db is not None:
                 self._db.delete_routine(after.id)
+        elif before is not None and after is not None:
+            # Was an update → revert to before
+            for i, r in enumerate(self._routines):
+                if r.id == before.id:
+                    self._routines[i] = replace(before)
+                    break
+            if self._db is not None:
+                self._db.update_routine(before)
         elif before is not None and after is None:
             # Was a delete → re-insert
             self._routines.append(replace(before))
@@ -637,6 +662,17 @@ class TaskController(QObject):
         if self._db is not None:
             self._db.insert_routine(routine)
         self._record_undo("routine_insert", [(None, replace(routine))])
+
+    def _on_routine_changed(self, routine: Routine):
+        old_snapshot = None
+        for i, r in enumerate(self._routines):
+            if r.id == routine.id:
+                old_snapshot = replace(r)
+                self._routines[i] = routine
+                break
+        if self._db is not None:
+            self._db.update_routine(routine)
+        self._record_undo("routine_update", [(old_snapshot, replace(routine))])
 
     def _on_routine_order_changed(self, routines: list):
         self._routines = routines

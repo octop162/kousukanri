@@ -1,6 +1,7 @@
 """CLI entry point for tracker — add/list tasks without GUI."""
 
 import argparse
+import json
 import sys
 from datetime import datetime, date, timedelta
 
@@ -133,8 +134,8 @@ def _merge_aggregates(dst_totals, dst_details, src_totals, src_details):
             dst_details[proj][task_name] = dst_details[proj].get(task_name, 0) + secs
 
 
-def _print_report_table(totals, details=None):
-    """Print a formatted report table from totals dict."""
+def _format_report_table(totals, details=None) -> str:
+    """Format a report table from totals dict and return as string."""
     # Sort: named projects alphabetically, "(なし)" last
     sorted_names = sorted(n for n in totals if n != "(なし)")
     if "(なし)" in totals:
@@ -150,22 +151,48 @@ def _print_report_table(totals, details=None):
     max_dw = max(_display_width(l) for l in all_labels)
     line_width = max(max_dw + 2 + 10, 30)
 
-    print("─" * line_width)
+    lines = []
+    lines.append("─" * line_width)
     grand_total = 0
     for name in sorted_names:
         secs = totals[name]
         grand_total += secs
         pad = " " * (max_dw - _display_width(name) + 2)
-        print(f"{name}{pad}{_fmt_time(secs)}")
+        lines.append(f"{name}{pad}{_fmt_time(secs)}")
         if details and name in details:
             for task_name in sorted(details[name]):
                 label = "  " + task_name
                 tsecs = details[name][task_name]
                 tpad = " " * (max_dw - _display_width(label) + 2)
-                print(f"{label}{tpad}{_fmt_time(tsecs)}")
-    print("─" * line_width)
+                lines.append(f"{label}{tpad}{_fmt_time(tsecs)}")
+    lines.append("─" * line_width)
     pad = " " * (max_dw - _display_width("合計") + 2)
-    print(f"合計{pad}{_fmt_time(grand_total)}")
+    lines.append(f"合計{pad}{_fmt_time(grand_total)}")
+    return "\n".join(lines)
+
+
+def _totals_to_json_list(totals, details=None):
+    """Convert totals/details dicts to a JSON-serializable list of project entries."""
+    sorted_names = sorted(n for n in totals if n != "(なし)")
+    if "(なし)" in totals:
+        sorted_names.append("(なし)")
+
+    entries = []
+    for name in sorted_names:
+        secs = totals[name]
+        entry = {"project": name, "seconds": int(secs), "formatted": _fmt_time(secs)}
+        if details and name in details:
+            entry["tasks"] = [
+                {"name": tn, "seconds": int(ts), "formatted": _fmt_time(ts)}
+                for tn, ts in sorted(details[name].items())
+            ]
+        entries.append(entry)
+    return entries
+
+
+def _print_report_table(totals, details=None):
+    """Print a formatted report table from totals dict."""
+    print(_format_report_table(totals, details))
 
 
 def cmd_report(args, db: Database):
@@ -177,15 +204,32 @@ def cmd_report(args, db: Database):
         target_date = date.today().isoformat()
     tasks = db.get_tasks_for_date(target_date)
 
-    print(f"{target_date} レポート")
+    detail = getattr(args, "detail", False)
+    use_json = getattr(args, "json", False)
+
     if not tasks:
-        print("タスクはありません")
+        if use_json:
+            print(json.dumps({"date": target_date, "projects": []}, ensure_ascii=False, indent=2))
+        else:
+            print(f"{target_date} レポート")
+            print("タスクはありません")
         return
 
     proj_map = {p.id: p.name for p in db.get_all_projects()}
-    detail = getattr(args, "detail", False)
     totals, details = _aggregate_by_project(tasks, proj_map, detail=detail)
-    _print_report_table(totals, details if detail else None)
+
+    if use_json:
+        grand_total = sum(totals.values())
+        data = {
+            "date": target_date,
+            "total_seconds": int(grand_total),
+            "total_formatted": _fmt_time(grand_total),
+            "projects": _totals_to_json_list(totals, details if detail else None),
+        }
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+    else:
+        print(f"{target_date} レポート")
+        _print_report_table(totals, details if detail else None)
 
 
 def _resolve_date_range(args) -> tuple[date, date]:
@@ -215,14 +259,18 @@ def _iter_date_range(start_date: date, end_date: date):
 def cmd_reports_by_day(args, db: Database):
     start_date, end_date = _resolve_date_range(args)
     detail = getattr(args, "detail", False)
+    use_json = getattr(args, "json", False)
 
     proj_map = {p.id: p.name for p in db.get_all_projects()}
     grand_total = 0
     days_with_tasks = 0
 
     days = (end_date - start_date).days + 1
-    print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} 日別レポート（{days}日間）")
-    print()
+    json_days = []
+
+    if not use_json:
+        print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} 日別レポート（{days}日間）")
+        print()
 
     for d in _iter_date_range(start_date, end_date):
         tasks = db.get_tasks_for_date(d.isoformat())
@@ -232,20 +280,41 @@ def cmd_reports_by_day(args, db: Database):
         totals, details = _aggregate_by_project(tasks, proj_map, detail=detail)
         day_total = sum(totals.values())
         grand_total += day_total
-        print(f"■ {d.isoformat()}  ({_fmt_time(day_total)})")
-        _print_report_table(totals, details if detail else None)
-        print()
 
-    if days_with_tasks == 0:
-        print("タスクはありません")
-        return
+        if use_json:
+            json_days.append({
+                "date": d.isoformat(),
+                "total_seconds": int(day_total),
+                "total_formatted": _fmt_time(day_total),
+                "projects": _totals_to_json_list(totals, details if detail else None),
+            })
+        else:
+            print(f"■ {d.isoformat()}  ({_fmt_time(day_total)})")
+            _print_report_table(totals, details if detail else None)
+            print()
 
-    print(f"記録日数: {days_with_tasks}日 / 合計: {_fmt_time(grand_total)}")
+    if use_json:
+        data = {
+            "from": start_date.isoformat(),
+            "to": end_date.isoformat(),
+            "days": days,
+            "days_with_tasks": days_with_tasks,
+            "total_seconds": int(grand_total),
+            "total_formatted": _fmt_time(grand_total),
+            "daily": json_days,
+        }
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+    else:
+        if days_with_tasks == 0:
+            print("タスクはありません")
+            return
+        print(f"記録日数: {days_with_tasks}日 / 合計: {_fmt_time(grand_total)}")
 
 
 def cmd_reports(args, db: Database):
     start_date, end_date = _resolve_date_range(args)
     detail = getattr(args, "detail", False)
+    use_json = getattr(args, "json", False)
 
     proj_map = {p.id: p.name for p in db.get_all_projects()}
     totals = {}
@@ -261,13 +330,26 @@ def cmd_reports(args, db: Database):
         _merge_aggregates(totals, all_details, day_totals, day_details)
 
     days = (end_date - start_date).days + 1
-    print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} 集計レポート（{days}日間）")
-    if not totals:
-        print("タスクはありません")
-        return
 
-    _print_report_table(totals, all_details if detail else None)
-    print(f"\n記録日数: {days_with_tasks}日")
+    if use_json:
+        grand_total = sum(totals.values())
+        data = {
+            "from": start_date.isoformat(),
+            "to": end_date.isoformat(),
+            "days": days,
+            "days_with_tasks": days_with_tasks,
+            "total_seconds": int(grand_total),
+            "total_formatted": _fmt_time(grand_total),
+            "projects": _totals_to_json_list(totals, all_details if detail else None),
+        }
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+    else:
+        print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} 集計レポート（{days}日間）")
+        if not totals:
+            print("タスクはありません")
+            return
+        _print_report_table(totals, all_details if detail else None)
+        print(f"\n記録日数: {days_with_tasks}日")
 
 
 def cmd_list_projects(args, db: Database):
@@ -309,6 +391,7 @@ def main():
     p_report.add_argument("--date", help="日付 (YYYY-MM-DD, デフォルト: 今日)")
     p_report.add_argument("--yesterday", action="store_true", help="昨日のレポート")
     p_report.add_argument("--detail", action="store_true", help="タスク別の内訳を表示")
+    p_report.add_argument("--json", action="store_true", help="JSON形式で出力")
 
     # reports-by-day
     p_rbd = sub.add_parser("reports-by-day", help="期間内の日別レポート")
@@ -316,6 +399,7 @@ def main():
     p_rbd.add_argument("--to", help="終了日 (YYYY-MM-DD, デフォルト: 今日)")
     p_rbd.add_argument("--since", help="過去N日 (例: 30, 7d)")
     p_rbd.add_argument("--detail", action="store_true", help="タスク別の内訳を表示")
+    p_rbd.add_argument("--json", action="store_true", help="JSON形式で出力")
 
     # reports
     p_rs = sub.add_parser("reports", help="期間内のプロジェクト別集計")
@@ -323,6 +407,7 @@ def main():
     p_rs.add_argument("--to", help="終了日 (YYYY-MM-DD, デフォルト: 今日)")
     p_rs.add_argument("--since", help="過去N日 (例: 30, 7d)")
     p_rs.add_argument("--detail", action="store_true", help="タスク別の内訳を表示")
+    p_rs.add_argument("--json", action="store_true", help="JSON形式で出力")
 
     args = parser.parse_args()
     if not args.command:

@@ -9,6 +9,7 @@ from views.project_list_view import ProjectListView
 from views.settings_view import SettingsView
 from views.timer_widget import TimerWidget
 from views.date_nav_widget import DateNavWidget
+from views.routine_view import RoutineView
 
 
 class MainWindow(QMainWindow):
@@ -17,6 +18,7 @@ class MainWindow(QMainWindow):
                  settings_view: SettingsView,
                  timer_widget: TimerWidget,
                  date_nav_widget: DateNavWidget = None,
+                 routine_view: RoutineView = None,
                  parent=None):
         super().__init__(parent)
         self.setWindowTitle("Time Tracker PoC")
@@ -69,6 +71,8 @@ class MainWindow(QMainWindow):
         tab_widget = QTabWidget()
         tab_widget.addTab(list_view, "タスク")
         tab_widget.addTab(project_list_view, "プロジェクト")
+        if routine_view is not None:
+            tab_widget.addTab(routine_view, "定期")
         tab_widget.addTab(settings_view, "設定")
         right_layout.addWidget(tab_widget)
 

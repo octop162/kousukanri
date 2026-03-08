@@ -22,6 +22,7 @@ class TaskController(QObject):
         self._project_list_view = None
         self._timer_widget = None
         self._date_nav_widget = None
+        self._routine_view = None
 
         # Timer state
         self._running_task_id: str | None = None
@@ -70,6 +71,11 @@ class TaskController(QObject):
         self._date_nav_widget = date_nav_widget
         date_nav_widget.date_requested.connect(self._on_date_requested)
 
+    def set_routine_view(self, routine_view):
+        """Connect a RoutineView for one-click task creation."""
+        self._routine_view = routine_view
+        routine_view.task_add_requested.connect(self._on_task_add_requested)
+
     # ── Date navigation ────────────────────────────────────────
 
     def _on_date_requested(self, new_date):
@@ -106,6 +112,10 @@ class TaskController(QObject):
         # Update timer widget display date
         if self._timer_widget is not None:
             self._timer_widget.set_display_date(self._current_date)
+
+        # Update routine view display date
+        if self._routine_view is not None:
+            self._routine_view.set_display_date(self._current_date)
 
     # ── Timer handlers ─────────────────────────────────────────
 
@@ -302,6 +312,8 @@ class TaskController(QObject):
             self._list_view.update_project_list(projects)
         if self._timer_widget is not None:
             self._timer_widget.update_project_list(projects)
+        if self._routine_view is not None:
+            self._routine_view.update_project_list(projects)
 
     def _on_project_created(self, project: Project):
         self._projects[project.id] = project

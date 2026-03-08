@@ -14,6 +14,7 @@ tracker/
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)
+│   ├── routine.py             # Routine dataclass (定期タスクプリセット)
 │   └── database.py            # SQLite DAL (Phase 2 - 未実装)
 ├── views/
 │   ├── main_window.py         # QMainWindow + QSplitter (1200x1000)
@@ -26,6 +27,7 @@ tracker/
 │   ├── project_list_view.py  # プロジェクト管理 (Phase 1.7)
 │   ├── timer_widget.py       # Toggl風タイマーバー (Phase 1.8)
 │   ├── date_nav_widget.py    # 日付ナビゲーション (◀/今日/▶ + カレンダー)
+│   ├── routine_view.py       # 定期タスク管理 (ルーティン登録・ワンクリック追加)
 │   └── settings_view.py      # 設定画面 (スナップ・表示範囲・テーマ)
 ├── controllers/
 │   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict)
@@ -114,6 +116,13 @@ tracker/
 - [x] タイムライン表示範囲を設定で変更可能 (デフォルト 7:00〜22:00)
 - [x] テーマ追加: ライト(旧パステル)・スカイ・ハッカー・Monokai・Solarized Light/Dark
 - [x] プロジェクトプルダウンに色付き■アイコン表示
+
+### Phase 1.10: 定期タスク（ルーティン）機能（動作確認済み）
+- [x] models/routine.py (Routine dataclass)
+- [x] views/routine_view.py (登録フォーム + テーブル + ワンクリック追加)
+- [x] controllers/task_controller.py に set_routine_view 追加
+- [x] views/main_window.py に「定期」タブ追加
+- [x] main.py に RoutineView 接続
 
 ### Phase 2: SQLite 永続化 & パフォーマンス検証（未着手）
 - [ ] models/database.py (WAL, CRUD, インデックス)

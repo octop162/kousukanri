@@ -12,9 +12,9 @@ from models.routine import Routine
 class Database:
     def __init__(self, db_path: str | Path | None = None):
         if db_path is None:
-            db_dir = Path.home() / ".tracker"
-            db_dir.mkdir(exist_ok=True)
-            db_path = db_dir / "tracker.db"
+            from utils.settings import DATA_DIR
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            db_path = DATA_DIR / "tracker.db"
         self._conn = sqlite3.connect(str(db_path))
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")

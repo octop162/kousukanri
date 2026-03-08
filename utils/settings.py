@@ -1,9 +1,19 @@
 import json
-import os
+import sys
 from pathlib import Path
 
-# Settings file path: ~/.tracker/settings.json
-SETTINGS_DIR = Path.home() / ".tracker"
+_IS_COMPILED = "__compiled__" in globals()
+
+
+def _get_data_dir() -> Path:
+    """Return the data directory: next to exe if Nuitka-compiled, else ~/.tracker/."""
+    if _IS_COMPILED:
+        return Path(sys.executable).parent / "data"
+    return Path.home() / ".tracker"
+
+
+DATA_DIR = _get_data_dir()
+SETTINGS_DIR = DATA_DIR
 SETTINGS_FILE = SETTINGS_DIR / "settings.json"
 
 DEFAULTS = {

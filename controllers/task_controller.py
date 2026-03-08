@@ -34,8 +34,8 @@ class TaskController(QObject):
     def set_list_view(self, list_view):
         """Connect a TaskListView for bidirectional sync."""
         self._list_view = list_view
-        list_view.task_add_requested.connect(self._on_list_add_requested)
-        list_view.task_project_changed.connect(self._on_task_project_changed)
+        list_view.task_edited.connect(self._on_task_edited)
+        list_view.task_delete_requested.connect(self._on_list_delete_requested)
 
     def set_project_list_view(self, project_list_view):
         """Connect a ProjectListView for project CRUD."""
@@ -55,9 +55,7 @@ class TaskController(QObject):
     # ── Timer handlers ─────────────────────────────────────────
 
     def _on_timer_started(self, name: str, project_id: str):
-        now = datetime.now().replace(second=0, microsecond=0)
-        # Snap start to 5-min
-        now = now.replace(minute=(now.minute // SNAP_MINUTES) * SNAP_MINUTES)
+        now = datetime.now().replace(microsecond=0)
         end = now  # will grow each tick
 
         pid = project_id if project_id else None
@@ -82,7 +80,7 @@ class TaskController(QObject):
         task = self._tasks.get(self._running_task_id)
         if task is None:
             return
-        task.end_time = datetime.now().replace(second=0, microsecond=0)
+        task.end_time = datetime.now().replace(microsecond=0)
         self._scene.update_task_block(task)
         if self._list_view is not None:
             self._list_view.update_task(task)
@@ -93,18 +91,11 @@ class TaskController(QObject):
             return
         task = self._tasks.get(self._running_task_id)
         if task is not None:
-            # Snap end_time to 5-min
-            now = datetime.now().replace(second=0, microsecond=0)
-            minute_snapped = round(now.minute / SNAP_MINUTES) * SNAP_MINUTES
-            if minute_snapped >= 60:
-                from datetime import timedelta
-                task.end_time = now.replace(minute=0) + timedelta(hours=1)
-            else:
-                task.end_time = now.replace(minute=minute_snapped)
+            task.end_time = datetime.now().replace(microsecond=0)
             # Ensure end > start
             if task.end_time <= task.start_time:
                 from datetime import timedelta
-                task.end_time = task.start_time + timedelta(minutes=SNAP_MINUTES)
+                task.end_time = task.start_time + timedelta(seconds=1)
             self._scene.update_task_block(task)
             if self._list_view is not None:
                 self._list_view.update_task(task)
@@ -180,11 +171,20 @@ class TaskController(QObject):
         if self._list_view is not None:
             self._list_view.add_task(task)
 
-    # ── signal handler (from list view: project change) ────────
+    # ── signal handlers (from list view) ────────────────────────
 
-    def _on_task_project_changed(self, task: Task):
+    def _on_task_edited(self, task: Task):
         self._tasks[task.id] = task
         self._scene.update_task_block(task)
+
+    def _on_list_delete_requested(self, task_id: str):
+        """Delete a task initiated from the list view."""
+        self._on_task_deleted(task_id)
+        # Also remove the block from the scene
+        for block in self._scene._get_blocks():
+            if block.task.id == task_id:
+                self._scene.removeItem(block)
+                break
 
     # ── project signal handlers ────────────────────────────────
 
@@ -196,7 +196,6 @@ class TaskController(QObject):
             self._list_view.update_project_list(projects)
         if self._timer_widget is not None:
             self._timer_widget.update_project_list(projects)
-
     def _on_project_created(self, project: Project):
         self._projects[project.id] = project
         if self._project_list_view is not None:

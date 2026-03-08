@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum, auto
 
 from PySide6.QtWidgets import (
-    QGraphicsRectItem, QGraphicsItem, QMenu, QInputDialog,
+    QGraphicsRectItem, QGraphicsItem, QMenu,
     QGraphicsSceneMouseEvent, QGraphicsSceneHoverEvent,
 )
 from PySide6.QtGui import QBrush, QColor, QPen, QPainter, QFont, QCursor
@@ -171,54 +171,54 @@ class TaskBlockItem(QGraphicsRectItem):
     # ── context menu ──────────────────────────────────────────
 
     def contextMenuEvent(self, event):
-        from utils.constants import DEFAULT_BLOCK_COLOR
-
         menu = QMenu()
-        rename_action = menu.addAction("Rename")
-
-        # Project submenu
-        project_menu = menu.addMenu("Change Project")
-        none_action = project_menu.addAction("(なし)")
-        project_actions = {}
-        if self._scene is not None:
-            for proj in self._scene._projects:
-                act = project_menu.addAction(proj.name)
-                project_actions[act] = proj
-
+        edit_action = menu.addAction("編集")
         menu.addSeparator()
-        delete_action = menu.addAction("Delete")
+        delete_action = menu.addAction("削除")
 
         action = menu.exec(event.screenPos())
 
         if action is None:
             return
 
-        if action == rename_action:
-            name, ok = QInputDialog.getText(None, "Rename Task", "Task name:", text=self.task.name)
-            if ok and name:
-                self.task.name = name
-                self.update()
-                if self._scene is not None:
-                    self._scene.task_changed.emit(self.task)
-
-        elif action == none_action:
-            self.task.project_id = None
-            self.task.color = DEFAULT_BLOCK_COLOR
-            self._update_brush()
-            self.update()
-            if self._scene is not None:
-                self._scene.task_changed.emit(self.task)
-
-        elif action in project_actions:
-            proj = project_actions[action]
-            self.task.project_id = proj.id
-            self.task.color = proj.color
-            self._update_brush()
-            self.update()
-            if self._scene is not None:
-                self._scene.task_changed.emit(self.task)
+        if action == edit_action:
+            self._open_edit_dialog()
 
         elif action == delete_action:
             if self._scene is not None:
                 self._scene.task_deleted.emit(self.task.id)
                 self._scene.removeItem(self)
+
+    def _open_edit_dialog(self):
+        from utils.constants import DEFAULT_BLOCK_COLOR
+        from views.task_edit_dialog import TaskEditDialog
+
+        projects = self._scene._projects if self._scene else []
+        dlg = TaskEditDialog(
+            self.task.name, self.task.project_id,
+            self.task.start_time, self.task.end_time,
+            projects,
+        )
+        if dlg.exec() != TaskEditDialog.DialogCode.Accepted:
+            return
+        result = dlg.get_result()
+        if result is None:
+            return
+
+        self.task.name = result["name"]
+        self.task.start_time = result["start_time"]
+        self.task.end_time = result["end_time"]
+        self.task.project_id = result["project_id"]
+
+        # Resolve project color
+        project = None
+        for p in projects:
+            if p.id == result["project_id"]:
+                project = p
+                break
+        self.task.color = project.color if project else DEFAULT_BLOCK_COLOR
+
+        self._update_brush()
+        self._apply_visual()
+        if self._scene is not None:
+            self._scene.task_changed.emit(self.task)

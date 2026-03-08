@@ -1,11 +1,7 @@
-from datetime import datetime, timedelta
-
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
-    QComboBox, QMenu,
+    QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem,
+    QHeaderView, QAbstractItemView, QMenu,
 )
-from PySide6.QtGui import QColor, QCursor
 from PySide6.QtCore import Signal, Qt
 
 from models.task import Task
@@ -14,10 +10,10 @@ from utils.constants import DEFAULT_BLOCK_COLOR
 
 
 class TaskListView(QWidget):
-    """Toggl-style task list with an add form at the top."""
+    """Task list table (no add form — that's in TaskInputWidget now)."""
 
-    task_add_requested = Signal(Task)
-    task_project_changed = Signal(Task)  # emitted when user changes a task's project
+    task_edited = Signal(Task)
+    task_delete_requested = Signal(str)  # task id
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -27,28 +23,8 @@ class TaskListView(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        # ── Add form ──
-        form = QHBoxLayout()
-        self._name_edit = QLineEdit()
-        self._name_edit.setPlaceholderText("タスク名を入力...")
-        self._name_edit.returnPressed.connect(self._on_add_clicked)
-
-        self._project_combo = QComboBox()
-        self._project_combo.setMinimumWidth(100)
-        self._project_combo.addItem("(なし)", None)
-
-        self._add_btn = QPushButton("+")
-        self._add_btn.setFixedWidth(32)
-        self._add_btn.clicked.connect(self._on_add_clicked)
-
-        form.addWidget(self._name_edit)
-        form.addWidget(self._project_combo)
-        form.addWidget(self._add_btn)
-        layout.addLayout(form)
-
-        # ── Table ──
         self._table = QTableWidget(0, 5)
         self._table.setHorizontalHeaderLabels(
             ["タスク名", "開始", "終了", "所要時間", "プロジェクト"]
@@ -62,60 +38,60 @@ class TaskListView(QWidget):
         for col in range(1, 5):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
-        self._table.cellClicked.connect(self._on_cell_clicked)
+        self._table.doubleClicked.connect(self._on_double_clicked)
+        self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._table.customContextMenuRequested.connect(self._on_context_menu)
         layout.addWidget(self._table)
 
-    # ── Cell click handler ──
+    # ── Context menu (right-click) ──
 
-    def _on_cell_clicked(self, row: int, col: int):
-        if col != 4 or row < 0 or row >= len(self._tasks):
+    def _on_context_menu(self, pos):
+        row = self._table.rowAt(pos.y())
+        if row < 0 or row >= len(self._tasks):
             return
         task = self._tasks[row]
-
         menu = QMenu(self)
-        none_action = menu.addAction("(なし)")
-        project_actions = {}
-        for proj in self._projects:
-            act = menu.addAction(proj.name)
-            project_actions[act] = proj
+        edit_action = menu.addAction("編集")
+        menu.addSeparator()
+        delete_action = menu.addAction("削除")
+        action = menu.exec(self._table.viewport().mapToGlobal(pos))
+        if action == edit_action:
+            self._open_edit_dialog(row)
+        elif action == delete_action:
+            self.task_delete_requested.emit(task.id)
 
-        action = menu.exec(QCursor.pos())
-        if action is None:
+    # ── Double-click → edit dialog ──
+
+    def _on_double_clicked(self, index):
+        row = index.row()
+        if 0 <= row < len(self._tasks):
+            self._open_edit_dialog(row)
+
+    def _open_edit_dialog(self, row: int):
+        from views.task_edit_dialog import TaskEditDialog
+
+        task = self._tasks[row]
+        dlg = TaskEditDialog(
+            task.name, task.project_id,
+            task.start_time, task.end_time,
+            self._projects, parent=self,
+        )
+        if dlg.exec() != TaskEditDialog.DialogCode.Accepted:
+            return
+        result = dlg.get_result()
+        if result is None:
             return
 
-        if action == none_action:
-            task.project_id = None
-            task.color = DEFAULT_BLOCK_COLOR
-        elif action in project_actions:
-            proj = project_actions[action]
-            task.project_id = proj.id
-            task.color = proj.color
+        task.name = result["name"]
+        task.start_time = result["start_time"]
+        task.end_time = result["end_time"]
+        task.project_id = result["project_id"]
+
+        project = self._find_project(result["project_id"])
+        task.color = project.color if project else DEFAULT_BLOCK_COLOR
 
         self._update_row(row, task)
-        self.task_project_changed.emit(task)
-
-    # ── Add form handler ──
-
-    def _on_add_clicked(self):
-        name = self._name_edit.text().strip() or "New Task"
-        now = datetime.now().replace(second=0, microsecond=0)
-        now = now.replace(minute=(now.minute // 5) * 5)
-        start = now
-        end = now + timedelta(minutes=30)
-
-        project_id = self._project_combo.currentData()
-        project = self._find_project(project_id)
-        if project is not None:
-            color = project.color
-        else:
-            color = DEFAULT_BLOCK_COLOR
-
-        task = Task(
-            name=name, start_time=start, end_time=end,
-            color=color, project_id=project_id,
-        )
-        self._name_edit.clear()
-        self.task_add_requested.emit(task)
+        self.task_edited.emit(task)
 
     def _find_project(self, project_id: str | None) -> Project | None:
         if project_id is None:
@@ -125,22 +101,10 @@ class TaskListView(QWidget):
                 return p
         return None
 
-    # ── Project combo management ──
+    # ── Public update methods (called by controller) ──
 
     def update_project_list(self, projects: list[Project]):
         self._projects = projects
-        current_data = self._project_combo.currentData()
-        self._project_combo.clear()
-        self._project_combo.addItem("(なし)", None)
-        for p in projects:
-            self._project_combo.addItem(p.name, p.id)
-        # Restore selection
-        for i in range(self._project_combo.count()):
-            if self._project_combo.itemData(i) == current_data:
-                self._project_combo.setCurrentIndex(i)
-                break
-
-    # ── Public update methods (called by controller) ──
 
     def add_task(self, task: Task):
         self._tasks.append(task)
@@ -169,17 +133,21 @@ class TaskListView(QWidget):
 
     def _update_row(self, row: int, task: Task):
         self._table.setItem(row, 0, QTableWidgetItem(task.name))
-        self._table.setItem(row, 1, QTableWidgetItem(task.start_time.strftime("%H:%M")))
-        self._table.setItem(row, 2, QTableWidgetItem(task.end_time.strftime("%H:%M")))
+        self._table.setItem(row, 1, QTableWidgetItem(task.start_time.strftime("%H:%M:%S")))
+        self._table.setItem(row, 2, QTableWidgetItem(task.end_time.strftime("%H:%M:%S")))
 
-        # Duration
         delta = task.end_time - task.start_time
-        total_min = int(delta.total_seconds()) // 60
-        h, m = divmod(total_min, 60)
-        duration_str = f"{h}h {m}m" if h else f"{m}m"
+        total_sec = int(delta.total_seconds())
+        h, rem = divmod(total_sec, 3600)
+        m, s = divmod(rem, 60)
+        if h:
+            duration_str = f"{h}h {m}m {s}s"
+        elif m:
+            duration_str = f"{m}m {s}s"
+        else:
+            duration_str = f"{s}s"
         self._table.setItem(row, 3, QTableWidgetItem(duration_str))
 
-        # Project name
         project = self._find_project(task.project_id)
         project_name = project.name if project else ""
         self._table.setItem(row, 4, QTableWidgetItem(project_name))

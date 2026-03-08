@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 
 # Timeline layout (vertical: Y axis = time)
-PIXELS_PER_HOUR = 200
+BASE_PIXELS_PER_HOUR = 200
+PIXELS_PER_HOUR = 200  # mutable — updated by set_zoom_scale()
 TIMELINE_START_HOUR = 0
 TIMELINE_END_HOUR = 24
 TIMELINE_HEIGHT = PIXELS_PER_HOUR * (TIMELINE_END_HOUR - TIMELINE_START_HOUR)
@@ -13,12 +14,12 @@ RESIZE_HANDLE_PX = 8
 MIN_BLOCK_DRAG_PX = 10  # minimum drag distance to create a block
 
 # Snap
-SNAP_MINUTES = 5
+SNAP_MINUTES = 1
 
 # Ruler
 RULER_WIDTH = 50  # left-side ruler column width
 RULER_TICK_MAJOR = 60   # minutes between major ticks (1h)
-RULER_TICK_MINOR = 15   # minutes between minor ticks
+RULER_TICK_MINOR = 15   # minutes between minor ticks (mutable)
 
 # Block area starts after the ruler
 BLOCK_LEFT = RULER_WIDTH + 8
@@ -29,6 +30,16 @@ DEFAULT_BLOCK_COLORS = [
     "#4A90D9", "#E74C3C", "#2ECC71", "#F39C12",
     "#9B59B6", "#1ABC9C", "#E67E22", "#3498DB",
 ]
+
+
+def set_zoom_scale(scale: float):
+    """Update PIXELS_PER_HOUR, TIMELINE_HEIGHT, RULER_TICK_MINOR based on zoom scale."""
+    global PIXELS_PER_HOUR, TIMELINE_HEIGHT, RULER_TICK_MINOR
+    PIXELS_PER_HOUR = BASE_PIXELS_PER_HOUR * scale
+    TIMELINE_HEIGHT = PIXELS_PER_HOUR * (TIMELINE_END_HOUR - TIMELINE_START_HOUR)
+    # If minor tick spacing would be < 35px, double the interval
+    minor_px = (15 / 60.0) * PIXELS_PER_HOUR
+    RULER_TICK_MINOR = 30 if minor_px < 35 else 15
 
 
 def time_to_y(t: datetime) -> float:

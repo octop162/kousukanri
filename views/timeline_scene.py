@@ -4,10 +4,8 @@ from PySide6.QtWidgets import QGraphicsScene, QGraphicsRectItem
 from PySide6.QtGui import QColor, QBrush, QPen, QTransform
 from PySide6.QtCore import Signal, QRectF
 
-from utils.constants import (
-    TIMELINE_HEIGHT, BLOCK_LEFT, BLOCK_WIDTH,
-    MIN_BLOCK_DRAG_PX, DEFAULT_BLOCK_COLOR, time_to_y, y_to_time,
-)
+import utils.constants as C
+from utils.constants import time_to_y, y_to_time
 from models.task import Task
 from views.time_ruler_item import TimeRulerItem
 from views.task_block_item import TaskBlockItem
@@ -25,8 +23,8 @@ class TimelineScene(QGraphicsScene):
         self._ruler = TimeRulerItem()
         self.addItem(self._ruler)
 
-        scene_w = BLOCK_LEFT + BLOCK_WIDTH + 20
-        self.setSceneRect(0, 0, scene_w, TIMELINE_HEIGHT)
+        scene_w = C.BLOCK_LEFT + C.BLOCK_WIDTH + 20
+        self.setSceneRect(0, 0, scene_w, C.TIMELINE_HEIGHT)
         self.setBackgroundBrush(QBrush(QColor("#1E1E1E")))
 
         # Drag-to-create state
@@ -91,7 +89,6 @@ class TimelineScene(QGraphicsScene):
         Tries the requested position first. If it overlaps, snaps to just after
         or just before the colliding block. Falls back to original position.
         """
-        from utils.constants import TIMELINE_START_HOUR, TIMELINE_END_HOUR
         duration = end - start
         blocks = self._get_blocks(exclude)
         others = sorted([(b.task.start_time, b.task.end_time) for b in blocks])
@@ -124,8 +121,8 @@ class TimelineScene(QGraphicsScene):
 
         midnight = start.replace(hour=0, minute=0, second=0, microsecond=0)
         from datetime import timedelta
-        day_start = midnight + timedelta(hours=TIMELINE_START_HOUR)
-        day_end = midnight + timedelta(hours=TIMELINE_END_HOUR)
+        day_start = midnight + timedelta(hours=C.TIMELINE_START_HOUR)
+        day_end = midnight + timedelta(hours=C.TIMELINE_END_HOUR)
 
         for cs, ce, _ in candidates:
             if cs >= day_start and ce <= day_end and not has_overlap(cs, ce):
@@ -154,20 +151,30 @@ class TimelineScene(QGraphicsScene):
                 block.setPen(QPen(QColor(task.color).darker(130), 1))
                 new_y = time_to_y(task.start_time)
                 new_h = time_to_y(task.end_time) - new_y
-                block.setPos(BLOCK_LEFT, new_y)
-                block.setRect(QRectF(0, 0, BLOCK_WIDTH, max(new_h, 1)))
+                block.setPos(C.BLOCK_LEFT, new_y)
+                block.setRect(QRectF(0, 0, C.BLOCK_WIDTH, max(new_h, 1)))
                 block.update()
                 return
+
+    def apply_zoom(self):
+        """Reposition all blocks and update scene rect after zoom scale change."""
+        scene_w = C.BLOCK_LEFT + C.BLOCK_WIDTH + 20
+        self.setSceneRect(0, 0, scene_w, C.TIMELINE_HEIGHT)
+        # Reposition all task blocks
+        for block in self._get_blocks():
+            block._apply_visual()
+        # Repaint ruler
+        self._ruler.prepareGeometryChange()
+        self._ruler.update()
 
     def _find_gap_at(self, y: float) -> tuple[datetime, datetime] | None:
         """Return the (start, end) of the gap surrounding scene-Y position y."""
         from datetime import timedelta
-        from utils.constants import TIMELINE_START_HOUR, TIMELINE_END_HOUR
 
         clicked_time = y_to_time(y, self._reference_date)
         midnight = self._reference_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        day_start = midnight + timedelta(hours=TIMELINE_START_HOUR)
-        day_end = midnight + timedelta(hours=TIMELINE_END_HOUR)
+        day_start = midnight + timedelta(hours=C.TIMELINE_START_HOUR)
+        day_end = midnight + timedelta(hours=C.TIMELINE_END_HOUR)
 
         blocks = self._get_blocks()
         others = sorted([(b.task.start_time, b.task.end_time) for b in blocks])
@@ -199,7 +206,7 @@ class TimelineScene(QGraphicsScene):
             return
 
         pos = event.scenePos()
-        if pos.x() < BLOCK_LEFT:
+        if pos.x() < C.BLOCK_LEFT:
             super().mouseDoubleClickEvent(event)
             return
 
@@ -212,7 +219,7 @@ class TimelineScene(QGraphicsScene):
         gap = self._find_gap_at(pos.y())
         if gap is not None:
             start, end = gap
-            color = DEFAULT_BLOCK_COLOR
+            color = C.DEFAULT_BLOCK_COLOR
             task = Task(name="New Task", start_time=start, end_time=end, color=color)
             self.add_task_block(task)
             self.task_created.emit(task)
@@ -231,14 +238,14 @@ class TimelineScene(QGraphicsScene):
             return
 
         pos = event.scenePos()
-        if pos.x() < BLOCK_LEFT:
+        if pos.x() < C.BLOCK_LEFT:
             super().mousePressEvent(event)
             return
 
         self._drag_creating = True
         self._drag_start_y = pos.y()
 
-        self._temp_rect = QGraphicsRectItem(QRectF(BLOCK_LEFT, pos.y(), BLOCK_WIDTH, 0))
+        self._temp_rect = QGraphicsRectItem(QRectF(C.BLOCK_LEFT, pos.y(), C.BLOCK_WIDTH, 0))
         self._temp_rect.setBrush(QBrush(QColor(255, 255, 255, 40)))
         self._temp_rect.setPen(QPen(QColor(255, 255, 255, 100)))
         self._temp_rect.setZValue(100)
@@ -248,7 +255,7 @@ class TimelineScene(QGraphicsScene):
         if self._drag_creating and self._temp_rect is not None:
             y1 = min(self._drag_start_y, event.scenePos().y())
             y2 = max(self._drag_start_y, event.scenePos().y())
-            self._temp_rect.setRect(QRectF(BLOCK_LEFT, y1, BLOCK_WIDTH, y2 - y1))
+            self._temp_rect.setRect(QRectF(C.BLOCK_LEFT, y1, C.BLOCK_WIDTH, y2 - y1))
         else:
             super().mouseMoveEvent(event)
 
@@ -262,14 +269,14 @@ class TimelineScene(QGraphicsScene):
             y1 = min(self._drag_start_y, event.scenePos().y())
             y2 = max(self._drag_start_y, event.scenePos().y())
 
-            if (y2 - y1) >= MIN_BLOCK_DRAG_PX:
+            if (y2 - y1) >= C.MIN_BLOCK_DRAG_PX:
                 start = y_to_time(y1, self._reference_date)
                 end = y_to_time(y2, self._reference_date)
                 if start < end:
                     result = self.resolve_overlap(start, end)
                     if result is not None:
                         start, end = result
-                        color = DEFAULT_BLOCK_COLOR
+                        color = C.DEFAULT_BLOCK_COLOR
                         task = Task(
                             name="New Task",
                             start_time=start,

@@ -15,25 +15,12 @@
 - **システムトレイ** — 常時トレイアイコン表示。最小化/閉じるでトレイに格納、多重起動防止
 - **データ永続化** — SQLite (`~/.tracker/tracker.db`)
 
-## セットアップ
 
-### 必要なもの
-
-- Python 3.10+
-- [uv](https://docs.astral.sh/uv/)
-
-### インストール
-
-```bash
-git clone <repository-url>
-cd tracker
-uv sync
-```
-
+## 起動方法
 ### GUI で起動
 
 ```bash
-uv run python main.py
+kousu-kanri-gui.exe
 ```
 
 ### CLI で使う
@@ -61,7 +48,9 @@ kousu-kanri.exe report-30d
 kousu-kanri.exe report-30d --date 2026-03-01
 ```
 
-## ビルド (exe)
+## セットアップ
+
+### ビルド (exe)
 
 [Nuitka](https://nuitka.net/) で Python なしで実行できる exe を生成できる。
 

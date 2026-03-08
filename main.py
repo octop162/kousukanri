@@ -59,35 +59,7 @@ def main():
     window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view)
     window.show()
 
-    if db.has_data():
-        # Load existing data from DB
-        controller.load_from_db()
-    else:
-        # Create sample data for first run
-        from datetime import datetime, timedelta
-        from models.project import Project
-        from models.task import Task
-
-        now = datetime.now().replace(second=0, microsecond=0)
-
-        proj_dev = Project(name="開発")
-        proj_mtg = Project(name="ミーティング")
-        proj_doc = Project(name="ドキュメント")
-
-        for proj in [proj_dev, proj_mtg, proj_doc]:
-            controller._on_project_created(proj)
-
-        sample_tasks = [
-            Task(name="コードレビュー", start_time=now - timedelta(hours=3), end_time=now - timedelta(hours=2),
-                 color=proj_dev.color, project_id=proj_dev.id),
-            Task(name="週次定例", start_time=now - timedelta(hours=2), end_time=now - timedelta(hours=1),
-                 color=proj_mtg.color, project_id=proj_mtg.id),
-            Task(name="API設計書作成", start_time=now - timedelta(hours=1), end_time=now,
-                 color=proj_doc.color, project_id=proj_doc.id),
-        ]
-        for task in sample_tasks:
-            controller._on_task_created(task)
-            scene.add_task_block(task)
+    controller.load_from_db()
 
     app.aboutToQuit.connect(db.close)
     sys.exit(app.exec())

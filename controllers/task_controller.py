@@ -12,6 +12,12 @@ from utils.constants import DEFAULT_BLOCK_COLOR, SNAP_MINUTES
 
 @dc
 class UndoAction:
+    """1レベルUndoのためのスナップショット。
+    snapshots は (操作前, 操作後) のペアリスト。
+    - 挿入: (None, after)  → Undoで削除
+    - 更新: (before, after) → Undoでbeforeに戻す
+    - 削除: (before, None)  → Undoで再挿入
+    """
     kind: str              # "task_insert" | "task_update" | "task_delete" | "task_bulk_update" |
                            # "project_insert" | "project_update" | "project_delete" | "project_bulk_update" |
                            # "routine_insert" | "routine_delete"
@@ -20,12 +26,16 @@ class UndoAction:
 
 
 class TaskController(QObject):
-    """Mediates between the TimelineScene and the data layer (in-memory or DB)."""
+    """View ↔ Model/DB の仲介役。
+    各ビューからのシグナルを受け取り、インメモリキャッシュとDBを更新し、
+    関連ビューに変更を通知する。タイマー管理・日付切替・Undoもここで行う。
+    """
 
     def __init__(self, scene: TimelineScene, database=None, parent=None):
         super().__init__(parent)
         self._scene = scene
         self._db = database
+        # 日付ごとのタスクキャッシュ。表示済み日付のみロードされる（遅延ロード）
         self._tasks_by_date: dict[date, dict[str, Task]] = {}
         self._current_date: date = date.today()
         self._projects: dict[str, Project] = {}
@@ -37,11 +47,12 @@ class TaskController(QObject):
         self._export_view = None
         self._routines: list[Routine] = []
 
-        # Undo state
+        # 直前の操作1つだけ保持。Undo実行後はNoneになり2回目は無効
         self._last_action: UndoAction | None = None
 
-        # Timer state
+        # タイマー計測中のタスクID。Noneなら計測していない
         self._running_task_id: str | None = None
+        # タイマー開始時の日付（日跨ぎ対応用）
         self._running_task_date: date | None = None
         self._tick_timer = QTimer(self)
         self._tick_timer.setInterval(1000)
@@ -53,6 +64,7 @@ class TaskController(QObject):
 
     @property
     def _tasks(self) -> dict[str, Task]:
+        """現在表示中の日付のタスク辞書を返す。未作成なら空dictを自動生成。"""
         return self._tasks_by_date.setdefault(self._current_date, {})
 
     def _tasks_for_date(self, d: date) -> dict[str, Task]:
@@ -294,6 +306,9 @@ class TaskController(QObject):
         self._tick_timer.start()
 
     def _on_timer_tick(self):
+        """毎秒呼ばれ、計測中タスクの end_time を現在時刻に伸ばす。
+        DB書き込みは行わない（stop時のみ書く）。
+        """
         if self._running_task_id is None:
             return
         task_date = self._running_task_date or self._current_date
@@ -302,7 +317,7 @@ class TaskController(QObject):
         if task is None:
             return
         task.end_time = datetime.now().replace(microsecond=0)
-        # Only update views if we're viewing the same date as the running task
+        # 別の日付を表示中ならUI更新をスキップ（タスク自体はバックグラウンドで伸び続ける）
         if task_date == self._current_date:
             self._scene.update_task_block(task)
             if self._list_view is not None:
@@ -395,6 +410,7 @@ class TaskController(QObject):
         self._refresh_export_view()
 
     def _on_task_changed(self, task: Task):
+        # Sceneから届く task は既に変更済みなので、Undo用にキャッシュから変更前を取得
         old = self._tasks.get(task.id)
         old_snapshot = replace(old) if old is not None else None
         self._tasks[task.id] = task
@@ -522,9 +538,10 @@ class TaskController(QObject):
         self._timer_widget.set_and_start(name, project_id)
 
     def _on_list_delete_requested(self, task_id: str):
-        """Delete a task initiated from the list view."""
+        """リストビューからの削除要求。タイムラインのブロックも手動で除去する。
+        （Sceneからの削除は scene.task_deleted 経由ではないため、ブロック除去が自動で走らない）
+        """
         self._on_task_deleted(task_id)
-        # Also remove the block from the scene
         for block in self._scene._get_blocks():
             if block.task.id == task_id:
                 self._scene.removeItem(block)
@@ -594,7 +611,8 @@ class TaskController(QObject):
         if self._project_list_view is not None:
             self._project_list_view.remove_project(project_id)
         self._sync_projects_to_views()
-        # Detach tasks from deleted project (keep color as-is)
+        # 削除されたプロジェクトに紐づくタスクのproject_idをNullに。
+        # 色はそのまま残す（見た目が急に変わるのを防ぐ）
         for task in self._tasks.values():
             if task.project_id == project_id:
                 task.project_id = None

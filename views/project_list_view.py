@@ -159,6 +159,10 @@ class ProjectListView(QWidget):
 
     # ── Public methods (called by controller) ──
 
+    def set_projects(self, projects: list[Project]):
+        self._projects = list(projects)
+        self._rebuild_table()
+
     def add_project(self, project: Project):
         self._projects.append(project)
         self._append_row(project)

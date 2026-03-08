@@ -1,3 +1,4 @@
+from dataclasses import dataclass as dc, replace
 from datetime import datetime, date
 
 from PySide6.QtCore import QObject, QTimer
@@ -7,6 +8,15 @@ from models.project import Project
 from models.routine import Routine
 from views.timeline_scene import TimelineScene
 from utils.constants import DEFAULT_BLOCK_COLOR, SNAP_MINUTES
+
+
+@dc
+class UndoAction:
+    kind: str              # "task_insert" | "task_update" | "task_delete" | "task_bulk_update" |
+                           # "project_insert" | "project_update" | "project_delete" | "project_bulk_update" |
+                           # "routine_insert" | "routine_delete"
+    snapshots: list        # [(before: T|None, after: T|None), ...]
+    affected_date: date | None = None
 
 
 class TaskController(QObject):
@@ -26,6 +36,9 @@ class TaskController(QObject):
         self._routine_view = None
         self._export_view = None
         self._routines: list[Routine] = []
+
+        # Undo state
+        self._last_action: UndoAction | None = None
 
         # Timer state
         self._running_task_id: str | None = None
@@ -97,6 +110,94 @@ class TaskController(QObject):
             self._sorted_projects(),
             self._current_date,
         )
+
+    # ── Undo ──────────────────────────────────────────────────
+
+    def _record_undo(self, kind, snapshots, affected_date=None):
+        self._last_action = UndoAction(kind, snapshots, affected_date)
+
+    def undo(self) -> bool:
+        if self._last_action is None:
+            return False
+        if self._running_task_id is not None:
+            return False  # タイマー実行中はundo禁止
+
+        action = self._last_action
+        self._last_action = None
+
+        for before, after in action.snapshots:
+            if action.kind.startswith("task_"):
+                self._undo_task(before, after)
+            elif action.kind.startswith("project_"):
+                self._undo_project(before, after)
+            elif action.kind.startswith("routine_"):
+                self._undo_routine(before, after)
+
+        # ビュー再描画
+        self._reload_views_for_date()
+        if action.kind.startswith("project_"):
+            self._sync_projects_to_views()
+            if self._project_list_view:
+                self._project_list_view.set_projects(self._sorted_projects())
+        if action.kind.startswith("routine_"):
+            if self._routine_view:
+                self._routine_view.set_routines(self._routines)
+        return True
+
+    def _undo_task(self, before, after):
+        """Reverse a single task snapshot: insert→delete, update→revert, delete→re-insert."""
+        if before is None and after is not None:
+            # Was an insert → delete it
+            task_date = after.start_time.date()
+            tasks = self._tasks_for_date(task_date)
+            tasks.pop(after.id, None)
+            if self._db is not None:
+                self._db.delete_task(after.id)
+        elif before is not None and after is not None:
+            # Was an update → revert to before
+            task_date = before.start_time.date()
+            tasks = self._tasks_for_date(task_date)
+            tasks[before.id] = replace(before)
+            if self._db is not None:
+                self._db.update_task(before)
+        elif before is not None and after is None:
+            # Was a delete → re-insert
+            task_date = before.start_time.date()
+            tasks = self._tasks_for_date(task_date)
+            tasks[before.id] = replace(before)
+            if self._db is not None:
+                self._db.insert_task(before)
+
+    def _undo_project(self, before, after):
+        """Reverse a single project snapshot."""
+        if before is None and after is not None:
+            # Was an insert → delete
+            self._projects.pop(after.id, None)
+            if self._db is not None:
+                self._db.delete_project(after.id)
+        elif before is not None and after is not None:
+            # Was an update → revert
+            self._projects[before.id] = replace(before)
+            if self._db is not None:
+                self._db.update_project(before)
+        elif before is not None and after is None:
+            # Was a delete → re-insert
+            self._projects[before.id] = replace(before)
+            if self._db is not None:
+                self._db.insert_project(before)
+
+    def _undo_routine(self, before, after):
+        """Reverse a single routine snapshot."""
+        if before is None and after is not None:
+            # Was an insert → delete
+            self._routines = [r for r in self._routines if r.id != after.id]
+            if self._db is not None:
+                self._db.delete_routine(after.id)
+        elif before is not None and after is None:
+            # Was a delete → re-insert
+            self._routines.append(replace(before))
+            if self._db is not None:
+                self._db.insert_routine(before)
 
     def is_idle(self) -> bool:
         """Return True if no timer is running and no task covers current time."""
@@ -189,6 +290,7 @@ class TaskController(QObject):
         self._running_task_id = task.id
         if self._db is not None:
             self._db.insert_task(task)
+        self._record_undo("task_insert", [(None, replace(task))])
         self._tick_timer.start()
 
     def _on_timer_tick(self):
@@ -214,6 +316,7 @@ class TaskController(QObject):
         tasks = self._tasks_for_date(task_date)
         task = tasks.get(self._running_task_id)
         if task is not None:
+            old_snapshot = replace(task)
             task.end_time = datetime.now().replace(microsecond=0)
             # Ensure end > start
             if task.end_time <= task.start_time:
@@ -225,6 +328,7 @@ class TaskController(QObject):
                 self._scene.update_task_block(task)
                 if self._list_view is not None:
                     self._list_view.update_task(task)
+            self._record_undo("task_update", [(old_snapshot, replace(task))])
         self._running_task_id = None
         self._running_task_date = None
 
@@ -274,6 +378,7 @@ class TaskController(QObject):
             self._list_view.add_task(task)
         if self._timer_widget is not None:
             self._timer_widget.add_task_to_history(task)
+        self._record_undo("task_insert", [(None, replace(task))])
         self._refresh_export_view()
 
     # ── signal handlers (from timeline) ────────────────────────
@@ -286,14 +391,18 @@ class TaskController(QObject):
             self._list_view.add_task(task)
         if self._timer_widget is not None:
             self._timer_widget.add_task_to_history(task)
+        self._record_undo("task_insert", [(None, replace(task))])
         self._refresh_export_view()
 
     def _on_task_changed(self, task: Task):
+        old = self._tasks.get(task.id)
+        old_snapshot = replace(old) if old is not None else None
         self._tasks[task.id] = task
         if self._db is not None:
             self._db.update_task(task)
         if self._list_view is not None:
             self._list_view.update_task(task)
+        self._record_undo("task_update", [(old_snapshot, replace(task))])
         self._refresh_export_view()
 
     def _on_task_deleted(self, task_id: str):
@@ -305,7 +414,9 @@ class TaskController(QObject):
             if self._timer_widget is not None:
                 self._timer_widget.force_stop()
 
-        self._tasks.pop(task_id, None)
+        deleted = self._tasks.pop(task_id, None)
+        if deleted is not None:
+            self._record_undo("task_delete", [(replace(deleted), None)])
         if self._db is not None:
             self._db.delete_task(task_id)
         if self._list_view is not None:
@@ -330,10 +441,13 @@ class TaskController(QObject):
     # ── signal handlers (from list view) ────────────────────────
 
     def _on_task_edited(self, task: Task):
+        old = self._tasks.get(task.id)
+        old_snapshot = replace(old) if old is not None else None
         self._tasks[task.id] = task
         self._scene.update_task_block(task)
         if self._db is not None:
             self._db.update_task(task)
+        self._record_undo("task_update", [(old_snapshot, replace(task))])
         self._refresh_export_view()
 
     def _on_task_apply_all(self, orig_name: str, orig_project_id: str,
@@ -349,17 +463,21 @@ class TaskController(QObject):
         # Get all matching tasks from DB (excluding the one already edited by _on_task_edited)
         matching = self._db.get_tasks_by_name_and_project(orig_name, orig_pid)
 
+        snapshots = []
         updated = []
         for task in matching:
+            old_snapshot = replace(task)
             task.name = new_name
             task.project_id = new_pid
             task.color = new_color
             updated.append(task)
+            snapshots.append((old_snapshot, replace(task)))
 
         if not updated:
             return
 
         self._db.bulk_update_tasks(updated)
+        self._record_undo("task_bulk_update", snapshots)
 
         # Update in-memory cache and views for tasks on currently loaded dates
         for task in updated:
@@ -380,11 +498,16 @@ class TaskController(QObject):
         self._refresh_export_view()
 
     def _on_tasks_bulk_edited(self, tasks: list):
+        snapshots = []
         for task in tasks:
+            old = self._tasks.get(task.id)
+            old_snapshot = replace(old) if old is not None else None
             self._tasks[task.id] = task
             self._scene.update_task_block(task)
             if self._db is not None:
                 self._db.update_task(task)
+            snapshots.append((old_snapshot, replace(task)))
+        self._record_undo("task_bulk_update", snapshots)
         self._refresh_export_view()
 
     def _on_list_start_requested(self, name: str, project_id: str):
@@ -430,14 +553,18 @@ class TaskController(QObject):
         if self._project_list_view is not None:
             self._project_list_view.add_project(project)
         self._sync_projects_to_views()
+        self._record_undo("project_insert", [(None, replace(project))])
 
     def _on_project_changed(self, project: Project):
+        old = self._projects.get(project.id)
+        old_snapshot = replace(old) if old is not None else None
         self._projects[project.id] = project
         if self._db is not None:
             self._db.update_project(project)
         if self._project_list_view is not None:
             self._project_list_view.update_project(project)
         self._sync_projects_to_views()
+        self._record_undo("project_update", [(old_snapshot, replace(project))])
         # Update colors of all tasks belonging to this project
         for task in self._tasks.values():
             if task.project_id == project.id:
@@ -448,15 +575,20 @@ class TaskController(QObject):
 
     def _on_project_order_changed(self, projects: list):
         """Update project order after D&D reorder."""
+        snapshots = []
         for p in projects:
             if p.id in self._projects:
+                old_snapshot = replace(self._projects[p.id])
                 self._projects[p.id].order = p.order
                 if self._db is not None:
                     self._db.update_project(self._projects[p.id])
+                snapshots.append((old_snapshot, replace(self._projects[p.id])))
         self._sync_projects_to_views()
+        if snapshots:
+            self._record_undo("project_bulk_update", snapshots)
 
     def _on_project_deleted(self, project_id: str):
-        self._projects.pop(project_id, None)
+        deleted = self._projects.pop(project_id, None)
         if self._db is not None:
             self._db.delete_project(project_id)
         if self._project_list_view is not None:
@@ -466,6 +598,8 @@ class TaskController(QObject):
         for task in self._tasks.values():
             if task.project_id == project_id:
                 task.project_id = None
+        if deleted is not None:
+            self._record_undo("project_delete", [(replace(deleted), None)])
 
     # ── routine signal handlers ────────────────────────────────
 
@@ -473,11 +607,19 @@ class TaskController(QObject):
         self._routines.append(routine)
         if self._db is not None:
             self._db.insert_routine(routine)
+        self._record_undo("routine_insert", [(None, replace(routine))])
 
     def _on_routine_deleted(self, routine_id: str):
+        deleted = None
+        for r in self._routines:
+            if r.id == routine_id:
+                deleted = replace(r)
+                break
         self._routines = [r for r in self._routines if r.id != routine_id]
         if self._db is not None:
             self._db.delete_routine(routine_id)
+        if deleted is not None:
+            self._record_undo("routine_delete", [(deleted, None)])
 
     # ── DB loading ────────────────────────────────────────────
 

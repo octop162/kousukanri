@@ -19,6 +19,8 @@ THEMES = {
         "timer_start": "#2ECC71",
         "timer_stop": "#E74C3C",
         "timer_add": "#3498DB",
+        "drag_fill": "#FFFFFF",
+        "drag_border": "#FFFFFF",
     },
     "sky": {
         "window": "#E3F2FD",
@@ -36,6 +38,8 @@ THEMES = {
         "timer_start": "#2ECC71",
         "timer_stop": "#E74C3C",
         "timer_add": "#3498DB",
+        "drag_fill": "#1565C0",
+        "drag_border": "#0D47A1",
     },
     "light": {
         "window": "#FDF6F0",
@@ -53,6 +57,8 @@ THEMES = {
         "timer_start": "#2ECC71",
         "timer_stop": "#E74C3C",
         "timer_add": "#3498DB",
+        "drag_fill": "#5B4A42",
+        "drag_border": "#3A2A22",
     },
     "black_green": {
         "window": "#0A0A0A",
@@ -67,9 +73,11 @@ THEMES = {
         "ruler_major": "#00AA00",
         "ruler_minor": "#004400",
         "ruler_text": "#00CC00",
-        "timer_start": "#2ECC71",
-        "timer_stop": "#E74C3C",
-        "timer_add": "#3498DB",
+        "timer_start": "#00CC00",
+        "timer_stop": "#CC0000",
+        "timer_add": "#00CC00",
+        "drag_fill": "#00FF00",
+        "drag_border": "#00CC00",
     },
     "monokai": {
         "window": "#272822",
@@ -87,6 +95,8 @@ THEMES = {
         "timer_start": "#2ECC71",
         "timer_stop": "#E74C3C",
         "timer_add": "#3498DB",
+        "drag_fill": "#A6E22E",
+        "drag_border": "#F8F8F2",
     },
     "solarized_light": {
         "window": "#FDF6E3",
@@ -104,6 +114,8 @@ THEMES = {
         "timer_start": "#2ECC71",
         "timer_stop": "#E74C3C",
         "timer_add": "#3498DB",
+        "drag_fill": "#268BD2",
+        "drag_border": "#073642",
     },
     "solarized_dark": {
         "window": "#002B36",
@@ -121,6 +133,8 @@ THEMES = {
         "timer_start": "#2ECC71",
         "timer_stop": "#E74C3C",
         "timer_add": "#3498DB",
+        "drag_fill": "#268BD2",
+        "drag_border": "#839496",
     },
 }
 

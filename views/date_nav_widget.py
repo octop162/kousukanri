@@ -23,7 +23,7 @@ class DateNavWidget(QWidget):
         layout.setContentsMargins(4, 2, 4, 2)
 
         self._prev_btn = QPushButton("◀")
-        self._prev_btn.setFixedWidth(40)
+        self._prev_btn.setFixedWidth(60)
         self._prev_btn.clicked.connect(self._go_prev)
         layout.addWidget(self._prev_btn)
 
@@ -45,7 +45,7 @@ class DateNavWidget(QWidget):
         layout.addStretch()
 
         self._next_btn = QPushButton("▶")
-        self._next_btn.setFixedWidth(40)
+        self._next_btn.setFixedWidth(60)
         self._next_btn.clicked.connect(self._go_next)
         layout.addWidget(self._next_btn)
 

@@ -265,8 +265,14 @@ class TimelineScene(QGraphicsScene):
         self._drag_start_y = pos.y()
 
         self._temp_rect = QGraphicsRectItem(QRectF(C.BLOCK_LEFT, pos.y(), C.BLOCK_WIDTH, 0))
-        self._temp_rect.setBrush(QBrush(QColor(255, 255, 255, 40)))
-        self._temp_rect.setPen(QPen(QColor(255, 255, 255, 100)))
+        drag_fill = self._theme_colors.get("drag_fill", "#FFFFFF")
+        drag_border = self._theme_colors.get("drag_border", "#FFFFFF")
+        fill_color = QColor(drag_fill)
+        fill_color.setAlpha(60)
+        border_color = QColor(drag_border)
+        border_color.setAlpha(140)
+        self._temp_rect.setBrush(QBrush(fill_color))
+        self._temp_rect.setPen(QPen(border_color, 2))
         self._temp_rect.setZValue(100)
         self.addItem(self._temp_rect)
 

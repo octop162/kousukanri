@@ -4,7 +4,6 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QComboBox,
     QDialogButtonBox, QCompleter, QMessageBox, QPushButton, QHBoxLayout,
-    QCheckBox,
 )
 from PySide6.QtCore import Qt, QModelIndex, QSize
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QColor, QIcon
@@ -169,10 +168,6 @@ class TaskEditDialog(QDialog):
         self._start_edit.editingFinished.connect(lambda: self._normalize_field(self._start_edit))
         self._end_edit.editingFinished.connect(lambda: self._normalize_field(self._end_edit))
 
-        # Apply to all matching tasks checkbox
-        self._apply_all_check = QCheckBox("同名・同プロジェクトのタスクも全て編集")
-        layout.addRow(self._apply_all_check)
-
         # Buttons
         btn_layout = QHBoxLayout()
         if allow_delete:
@@ -267,5 +262,4 @@ class TaskEditDialog(QDialog):
             "project_id": project_id,
             "start_time": start,
             "end_time": end,
-            "apply_to_all": self._apply_all_check.isChecked(),
         }

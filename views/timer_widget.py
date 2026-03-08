@@ -58,7 +58,7 @@ class TimerWidget(QWidget):
         self._name_edit.setCompleter(self._completer)
 
         self._project_combo = QComboBox()
-        self._project_combo.setMinimumWidth(100)
+        self._project_combo.setMinimumWidth(150)
         self._project_combo.addItem("(なし)", None)
         self._project_combo.currentIndexChanged.connect(self._on_project_changed)
         layout.addWidget(self._project_combo)

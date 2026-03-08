@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QMainWindow, QSplitter, QTabWidget, QWidget,
                                 QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                 QSystemTrayIcon, QMenu)
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QIcon, QAction, QShortcut, QKeySequence
 
 from views.timeline_view import TimelineView
 from views.timeline_scene import TimelineScene
@@ -93,10 +93,11 @@ class MainWindow(QMainWindow):
         right_splitter = QSplitter(Qt.Orientation.Vertical)
         right_splitter.addWidget(tab_widget)
         right_splitter.addWidget(lower_tab_widget)
+        right_splitter.setSizes([500, 500])
         right_layout.addWidget(right_splitter)
 
         splitter.addWidget(right_panel)
-        splitter.setSizes([500, 700])
+        splitter.setSizes([400, 800])
 
         self.setCentralWidget(splitter)
 
@@ -126,6 +127,10 @@ class MainWindow(QMainWindow):
         settings_view.settings_changed.connect(self._on_settings_changed)
         settings_view.test_notify_requested.connect(self._on_test_notify)
 
+        # Ctrl+Z undo shortcut
+        self._undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
+        self._undo_shortcut.activated.connect(self._on_undo)
+
     def set_controller(self, controller):
         """Set controller for idle check. Call after construction."""
         self._controller = controller
@@ -133,6 +138,10 @@ class MainWindow(QMainWindow):
         self._idle_notify = load_settings().get("idle_notify", True)
         if self._idle_notify:
             self._idle_timer.start()
+
+    def _on_undo(self):
+        if self._controller is not None:
+            self._controller.undo()
 
     def _on_settings_changed(self, settings: dict):
         self._idle_notify = settings.get("idle_notify", True)

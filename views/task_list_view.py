@@ -81,11 +81,14 @@ class TaskListView(QWidget):
         task = self._tasks[row]
         menu = QMenu(self)
         edit_action = menu.addAction("編集")
+        apply_all_action = menu.addAction("同名タスクを一括編集")
         menu.addSeparator()
         delete_action = menu.addAction("削除")
         action = menu.exec(self._table.viewport().mapToGlobal(pos))
         if action == edit_action:
             self._open_edit_dialog(row)
+        elif action == apply_all_action:
+            self._open_apply_all_dialog(row)
         elif action == delete_action:
             self.task_delete_requested.emit(task.id)
 
@@ -115,9 +118,6 @@ class TaskListView(QWidget):
         if result is None:
             return
 
-        orig_name = task.name
-        orig_project_id = task.project_id
-
         task.name = result["name"]
         task.start_time = result["start_time"]
         task.end_time = result["end_time"]
@@ -129,13 +129,42 @@ class TaskListView(QWidget):
         self._update_row(row, task)
         self.task_edited.emit(task)
 
-        if result.get("apply_to_all"):
-            self.task_apply_all_requested.emit(
-                orig_name,
-                orig_project_id or "",
-                result["name"],
-                result["project_id"] or "",
-            )
+    def _open_apply_all_dialog(self, row: int):
+        """Open edit dialog for a task, then apply changes to all matching tasks."""
+        from views.task_edit_dialog import TaskEditDialog
+
+        task = self._tasks[row]
+        orig_name = task.name
+        orig_project_id = task.project_id
+        history = [(t.name, t.project_id) for t in self._tasks]
+        dlg = TaskEditDialog(
+            task.name, task.project_id,
+            task.start_time, task.end_time,
+            self._projects, task_history=history, parent=self,
+        )
+        dlg.setWindowTitle("同名タスクを一括編集")
+        if dlg.exec() != TaskEditDialog.DialogCode.Accepted:
+            return
+        result = dlg.get_result()
+        if result is None:
+            return
+
+        task.name = result["name"]
+        task.start_time = result["start_time"]
+        task.end_time = result["end_time"]
+        task.project_id = result["project_id"]
+
+        project = self._find_project(result["project_id"])
+        task.color = project.color if project else DEFAULT_BLOCK_COLOR
+
+        self._update_row(row, task)
+        self.task_edited.emit(task)
+        self.task_apply_all_requested.emit(
+            orig_name,
+            orig_project_id or "",
+            result["name"],
+            result["project_id"] or "",
+        )
 
     def _open_bulk_edit_dialog(self, rows: list[int]):
         from views.task_edit_dialog import BulkEditDialog

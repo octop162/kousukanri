@@ -42,6 +42,7 @@ class RoutineView(QWidget):
         self._name_edit.setPlaceholderText("タスク名")
         row1.addWidget(self._name_edit, 1)
         self._project_combo = QComboBox()
+        self._project_combo.setMinimumWidth(150)
         self._project_combo.addItem("(なし)", None)
         row1.addWidget(self._project_combo)
         layout.addLayout(row1)

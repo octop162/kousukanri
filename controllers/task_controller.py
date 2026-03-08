@@ -49,6 +49,7 @@ class TaskController(QObject):
         """Connect a TaskListView for bidirectional sync."""
         self._list_view = list_view
         list_view.task_edited.connect(self._on_task_edited)
+        list_view.tasks_bulk_edited.connect(self._on_tasks_bulk_edited)
         list_view.task_delete_requested.connect(self._on_list_delete_requested)
         list_view.task_start_requested.connect(self._on_list_start_requested)
 
@@ -332,6 +333,14 @@ class TaskController(QObject):
         self._scene.update_task_block(task)
         if self._db is not None:
             self._db.update_task(task)
+        self._refresh_export_view()
+
+    def _on_tasks_bulk_edited(self, tasks: list):
+        for task in tasks:
+            self._tasks[task.id] = task
+            self._scene.update_task_block(task)
+            if self._db is not None:
+                self._db.update_task(task)
         self._refresh_export_view()
 
     def _on_list_start_requested(self, name: str, project_id: str):

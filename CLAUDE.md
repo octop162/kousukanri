@@ -11,20 +11,20 @@
 ```
 tracker/
 ├── main.py                    # GUI エントリーポイント
-├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects/report)
+├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects/report/report-30d)
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)
 │   ├── routine.py             # Routine dataclass (定期タスクプリセット)
 │   └── database.py            # SQLite DAL (WAL, CRUD, ~/.tracker/tracker.db)
 ├── views/
-│   ├── main_window.py         # QMainWindow + QSplitter + システムトレイ (1200x1000)
+│   ├── main_window.py         # QMainWindow + QSplitter + システムトレイ常時表示 + 多重起動防止 (1200x1000)
 │   ├── timeline_view.py       # QGraphicsView (起動時 8:00 付近にスクロール)
 │   ├── timeline_scene.py      # QGraphicsScene (D&D 新規作成・重複制御・ダブルクリック)
 │   ├── task_block_item.py     # QGraphicsRectItem (移動・リサイズ・右クリック)
 │   ├── time_ruler_item.py     # 左側に時刻ラベル + 横グリッド線
 │   ├── task_list_view.py     # タスクリスト (Phase 1.5)
-│   ├── task_edit_dialog.py   # タスク編集ダイアログ
+│   ├── task_edit_dialog.py   # タスク編集ダイアログ (単体編集 + 一括編集)
 │   ├── project_list_view.py  # プロジェクト管理 (Phase 1.7)
 │   ├── timer_widget.py       # タイマーバー (Phase 1.8)
 │   ├── date_nav_widget.py    # 日付ナビゲーション (◀/今日/▶ + カレンダー)
@@ -139,11 +139,13 @@ tracker/
 - [x] タイマー: tick では DB 書き込みなし、stop 時のみ書き込み
 
 ### Phase 2.1: CLI ツール（動作確認済み）
-- [x] cli.py (argparse ベース、add/list/add-project/list-projects サブコマンド)
+- [x] cli.py (argparse ベース、add/list/add-project/list-projects/report/report-30d)
 - [x] add: タスク名・開始・終了時刻・プロジェクト指定で DB に直接追加
 - [x] list: 日付指定でタスク一覧表示 (開始時刻順)
 - [x] add-project: プロジェクト追加 (名前・色指定)
 - [x] list-projects: プロジェクト一覧表示
+- [x] report: プロジェクト別レポート (--date, --yesterday)
+- [x] report-30d: 過去30日の日ごとレポート (--date)
 
 ### Phase 2.2: CI/CD・ビルド・配布（動作確認済み）
 - [x] .github/workflows/build-release.yml (Nuitka standalone ビルド)
@@ -152,10 +154,18 @@ tracker/
 - [x] Nuitka ビルド時は exe 隣の data/ にデータ配置 (__compiled__ 判定)
 
 ### Phase 2.3: システムトレイ・通知（動作確認済み）
+- [x] トレイアイコン常時表示（起動直後から表示、終了時のみ非表示）
 - [x] 最小化・バツボタンでシステムトレイに格納
 - [x] トレイダブルクリックで復帰、右クリックで表示/終了メニュー
 - [x] 未計測時の通知 (5分間隔チェック、設定で ON/OFF 可)
 - [x] 設定画面にテスト通知ボタン追加
+- [x] QLocalServer/Socket による多重起動防止（既存ウィンドウを前面に復帰）
+
+### Phase 2.4: CLI レポート・一括編集（動作確認済み）
+- [x] report: プロジェクト別レポート (--date, --yesterday)
+- [x] report-30d: 過去30日の日ごとレポート (--date)
+- [x] タスクリストで複数選択 → 右クリック「一括編集」（名前・プロジェクトをまとめて変更）
+- [x] タイマー開始時に表示日が今日でなければ自動で今日に切り替え
 
 ## 起動方法
 ```

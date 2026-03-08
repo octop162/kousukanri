@@ -44,6 +44,53 @@ def _make_color_icon(color: str, size: int = 12) -> QIcon:
     return QIcon(pixmap)
 
 
+class BulkEditDialog(QDialog):
+    """Dialog for bulk-editing multiple tasks (name and/or project)."""
+
+    _color_icon = staticmethod(_make_color_icon)
+    _UNCHANGED = "__unchanged__"
+
+    def __init__(self, count: int, projects: list[Project], parent=None):
+        super().__init__(parent)
+        self._projects = projects
+        self.setWindowTitle(f"一括編集（{count}件）")
+        self.setMinimumWidth(300)
+
+        layout = QFormLayout(self)
+
+        # Name (empty = no change)
+        self._name_edit = QLineEdit()
+        self._name_edit.setPlaceholderText("変更しない")
+        layout.addRow("タスク名:", self._name_edit)
+
+        # Project (first item = no change)
+        self._project_combo = QComboBox()
+        self._project_combo.addItem("(変更しない)", self._UNCHANGED)
+        self._project_combo.addItem("(なし)", None)
+        for p in projects:
+            self._project_combo.addItem(self._color_icon(p.color), p.name, p.id)
+        layout.addRow("プロジェクト:", self._project_combo)
+
+        # Buttons
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def get_result(self) -> dict:
+        """Return dict with keys to change. Missing keys = no change."""
+        result = {}
+        name = self._name_edit.text().strip()
+        if name:
+            result["name"] = name
+        project_data = self._project_combo.currentData()
+        if project_data != self._UNCHANGED:
+            result["project_id"] = project_data
+        return result
+
+
 class TaskEditDialog(QDialog):
     """Unified dialog for editing task name, project, start/end time."""
 

@@ -14,6 +14,7 @@ class TaskListView(QWidget):
     """Task list table (no add form — that's in TaskInputWidget now)."""
 
     task_edited = Signal(Task)
+    tasks_bulk_edited = Signal(list)  # list of Task
     task_delete_requested = Signal(str)  # task id
     task_start_requested = Signal(str, str)  # (name, project_id)
 
@@ -33,6 +34,7 @@ class TaskListView(QWidget):
         )
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self._table.verticalHeader().setVisible(False)
 
         header = self._table.horizontalHeader()
@@ -65,6 +67,16 @@ class TaskListView(QWidget):
         row = self._table.rowAt(pos.y())
         if row < 0 or row >= len(self._tasks):
             return
+
+        selected_rows = sorted(set(idx.row() for idx in self._table.selectedIndexes()))
+        if len(selected_rows) > 1:
+            menu = QMenu(self)
+            bulk_edit_action = menu.addAction(f"一括編集（{len(selected_rows)}件）")
+            action = menu.exec(self._table.viewport().mapToGlobal(pos))
+            if action == bulk_edit_action:
+                self._open_bulk_edit_dialog(selected_rows)
+            return
+
         task = self._tasks[row]
         menu = QMenu(self)
         edit_action = menu.addAction("編集")
@@ -112,6 +124,33 @@ class TaskListView(QWidget):
 
         self._update_row(row, task)
         self.task_edited.emit(task)
+
+    def _open_bulk_edit_dialog(self, rows: list[int]):
+        from views.task_edit_dialog import BulkEditDialog
+
+        tasks = [self._tasks[r] for r in rows if r < len(self._tasks)]
+        if not tasks:
+            return
+
+        dlg = BulkEditDialog(len(tasks), self._projects, parent=self)
+        if dlg.exec() != BulkEditDialog.DialogCode.Accepted:
+            return
+        result = dlg.get_result()
+        if not result:
+            return
+
+        edited_tasks = []
+        for task in tasks:
+            if "name" in result:
+                task.name = result["name"]
+            if "project_id" in result:
+                task.project_id = result["project_id"]
+                project = self._find_project(result["project_id"])
+                task.color = project.color if project else DEFAULT_BLOCK_COLOR
+            edited_tasks.append(task)
+
+        self._rebuild_table()
+        self.tasks_bulk_edited.emit(edited_tasks)
 
     def _find_project(self, project_id: str | None) -> Project | None:
         if project_id is None:

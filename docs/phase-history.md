@@ -88,9 +88,45 @@
 
 ---
 
-## 未実装 (Phase 2 以降)
+## Phase 2: SQLite 永続化
 
-### Phase 2: SQLite 永続化
 - `models/database.py` で WAL モードの SQLite 接続
 - Controller に DB 読み書きを接続
-- `perf_counter` でパフォーマンス計測
+- 日付切替時の遅延ロード
+- タイマー: tick では DB 書き込みなし、stop 時のみ書き込み
+
+---
+
+## Phase 2.1: CLI ツール
+
+ターミナルからタスクを操作する CLI。
+
+- `cli.py` (argparse ベース)
+- サブコマンド: `add`, `list`, `add-project`, `list-projects`, `report`, `report-30d`
+- `report`: プロジェクト別レポート (`--date`, `--yesterday`)
+- `report-30d`: 過去30日の日ごとレポート (`--date`)
+
+---
+
+## Phase 2.2: CI/CD・ビルド・配布
+
+- `.github/workflows/build-release.yml` (Nuitka standalone ビルド)
+- GUI (`kousu-kanri-gui.exe`) + CLI (`kousu-kanri.exe`) を zip に同梱してリリース
+- `v*` タグ push で自動ビルド&リリース
+
+---
+
+## Phase 2.3: システムトレイ・通知・多重起動防止
+
+- トレイアイコン常時表示（起動直後から表示、終了時のみ非表示）
+- 最小化・バツボタンでトレイに格納、ダブルクリックで復帰
+- 未計測時の通知 (5分間隔、設定で ON/OFF 可)
+- QLocalServer/Socket による多重起動防止（2つ目の起動で既存ウィンドウを前面に復帰）
+
+---
+
+## Phase 2.4: 一括編集・タイマー改善
+
+- タスクリストで Ctrl/Shift クリックによる複数選択
+- 右クリック「一括編集」で名前・プロジェクトをまとめて変更（変更しないフィールドは元のまま）
+- タイマー開始時に表示日が今日でなければ自動で今日に切り替え

@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QCompleter,
 )
 from PySide6.QtCore import Signal, QTimer, Qt, QModelIndex
-from PySide6.QtGui import QStandardItemModel, QStandardItem
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QColor, QIcon
 
 from models.project import Project
 from models.task import Task
@@ -85,6 +85,12 @@ class TimerWidget(QWidget):
         )
         self._toggle_btn.clicked.connect(self._on_toggle)
         layout.addWidget(self._toggle_btn)
+
+    @staticmethod
+    def _make_color_icon(color: str, size: int = 12) -> QIcon:
+        pixmap = QPixmap(size, size)
+        pixmap.fill(QColor(color))
+        return QIcon(pixmap)
 
     # ── Completer ──
 
@@ -262,7 +268,8 @@ class TimerWidget(QWidget):
         self._project_combo.clear()
         self._project_combo.addItem("(なし)", None)
         for p in projects:
-            self._project_combo.addItem(p.name, p.id)
+            icon = self._make_color_icon(p.color)
+            self._project_combo.addItem(icon, p.name, p.id)
         # Restore selection
         for i in range(self._project_combo.count()):
             if self._project_combo.itemData(i) == current_data:

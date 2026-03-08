@@ -5,8 +5,8 @@ from PySide6.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QComboBox,
     QDialogButtonBox, QCompleter, QMessageBox, QPushButton, QHBoxLayout,
 )
-from PySide6.QtCore import Qt, QModelIndex
-from PySide6.QtGui import QStandardItemModel, QStandardItem
+from PySide6.QtCore import Qt, QModelIndex, QSize
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QColor, QIcon
 
 from models.project import Project
 
@@ -37,8 +37,17 @@ def format_time(h: int, m: int, s: int) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
+def _make_color_icon(color: str, size: int = 12) -> QIcon:
+    """Create a small square icon filled with the given color."""
+    pixmap = QPixmap(QSize(size, size))
+    pixmap.fill(QColor(color))
+    return QIcon(pixmap)
+
+
 class TaskEditDialog(QDialog):
     """Unified dialog for editing task name, project, start/end time."""
+
+    _color_icon = staticmethod(_make_color_icon)
 
     def __init__(self, name: str, project_id: str | None,
                  start_time: datetime, end_time: datetime,
@@ -63,7 +72,7 @@ class TaskEditDialog(QDialog):
         self._project_combo.addItem("(なし)", None)
         selected_index = 0
         for i, p in enumerate(projects):
-            self._project_combo.addItem(p.name, p.id)
+            self._project_combo.addItem(self._color_icon(p.color), p.name, p.id)
             if p.id == project_id:
                 selected_index = i + 1
         self._project_combo.setCurrentIndex(selected_index)

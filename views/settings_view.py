@@ -50,7 +50,11 @@ class SettingsView(QWidget):
         self._theme_combo.addItem("システムのテーマに合わせる", "system")
         self._theme_combo.addItem("ダーク", "dark")
         self._theme_combo.addItem("ライト", "light")
-        self._theme_combo.addItem("パステル", "pastel")
+        self._theme_combo.addItem("空色", "sky")
+        self._theme_combo.addItem("黒緑", "black_green")
+        self._theme_combo.addItem("Monokai", "monokai")
+        self._theme_combo.addItem("Solarized Light", "solarized_light")
+        self._theme_combo.addItem("Solarized Dark", "solarized_dark")
         layout.addRow("テーマ:", self._theme_combo)
 
         self._restart_label = QLabel("※ テーマは再起動後に反映されます")

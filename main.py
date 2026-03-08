@@ -57,6 +57,7 @@ def main():
     controller.set_export_view(export_view)
 
     window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view)
+    window.set_controller(controller)
     window.show()
 
     controller.load_from_db()

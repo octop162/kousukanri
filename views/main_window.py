@@ -3,7 +3,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (QMainWindow, QSplitter, QTabWidget, QWidget,
                                 QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                 QSystemTrayIcon, QMenu)
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QAction
 
 from views.timeline_view import TimelineView
@@ -114,6 +114,50 @@ class MainWindow(QMainWindow):
         tray_menu.addAction(quit_action)
         self._tray.setContextMenu(tray_menu)
         self._tray.activated.connect(self._on_tray_activated)
+
+        # Idle reminder
+        self._controller = None
+        self._idle_notify = True
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setInterval(5 * 60 * 1000)  # 5 minutes
+        self._idle_timer.timeout.connect(self._check_idle)
+
+        settings_view.settings_changed.connect(self._on_settings_changed)
+        settings_view.test_notify_requested.connect(self._on_test_notify)
+
+    def set_controller(self, controller):
+        """Set controller for idle check. Call after construction."""
+        self._controller = controller
+        from utils.settings import load_settings
+        self._idle_notify = load_settings().get("idle_notify", True)
+        if self._idle_notify:
+            self._idle_timer.start()
+
+    def _on_settings_changed(self, settings: dict):
+        self._idle_notify = settings.get("idle_notify", True)
+        if self._idle_notify:
+            self._idle_timer.start()
+        else:
+            self._idle_timer.stop()
+
+    def _on_test_notify(self):
+        self._tray.show()
+        self._tray.showMessage(
+            "KousuKanri",
+            "これはテスト通知です。",
+            QSystemTrayIcon.MessageIcon.Information,
+            5000,
+        )
+
+    def _check_idle(self):
+        if self._idle_notify and self._controller and self._controller.is_idle():
+            self._tray.show()
+            self._tray.showMessage(
+                "KousuKanri",
+                "タスクが記録されていません。計測を始めましょう！",
+                QSystemTrayIcon.MessageIcon.Information,
+                5000,
+            )
 
     def _on_zoom_changed(self, level: float):
         self._zoom_label.setText(f"{int(level * 100)}%")

@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QFormLayout, QSpinBox, QLabel, QPushButton, QMessageBox, QComboBox,
+    QCheckBox, QHBoxLayout,
 )
 from PySide6.QtCore import Signal
 
@@ -8,6 +9,7 @@ from utils.settings import load_settings, save_settings
 
 class SettingsView(QWidget):
     settings_changed = Signal(dict)  # emitted with full settings dict
+    test_notify_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -61,6 +63,13 @@ class SettingsView(QWidget):
         self._restart_label.setStyleSheet("color: #888; font-size: 11px;")
         layout.addRow(self._restart_label)
 
+        self._idle_notify_check = QCheckBox("未計測時に通知する")
+        layout.addRow(self._idle_notify_check)
+
+        self._test_notify_btn = QPushButton("テスト通知")
+        self._test_notify_btn.clicked.connect(self._on_test_notify)
+        layout.addRow(self._test_notify_btn)
+
         save_btn = QPushButton("保存")
         save_btn.clicked.connect(self._on_save)
         layout.addRow(save_btn)
@@ -76,6 +85,10 @@ class SettingsView(QWidget):
             if self._theme_combo.itemData(i) == theme:
                 self._theme_combo.setCurrentIndex(i)
                 break
+        self._idle_notify_check.setChecked(s.get("idle_notify", True))
+
+    def _on_test_notify(self):
+        self.test_notify_requested.emit()
 
     def _on_save(self):
         s = {
@@ -84,6 +97,7 @@ class SettingsView(QWidget):
             "timeline_start_hour": self._start_hour_spin.value(),
             "timeline_end_hour": self._end_hour_spin.value(),
             "theme": self._theme_combo.currentData(),
+            "idle_notify": self._idle_notify_check.isChecked(),
         }
         save_settings(s)
         self.settings_changed.emit(s)

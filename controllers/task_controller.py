@@ -96,6 +96,18 @@ class TaskController(QObject):
             self._current_date,
         )
 
+    def is_idle(self) -> bool:
+        """Return True if no timer is running and no task covers current time."""
+        if self._running_task_id is not None:
+            return False
+        now = datetime.now()
+        today = now.date()
+        tasks = self._tasks_by_date.get(today, {})
+        for task in tasks.values():
+            if task.start_time <= now <= task.end_time:
+                return False
+        return True
+
     # ── Date navigation ────────────────────────────────────────
 
     def _on_date_requested(self, new_date):

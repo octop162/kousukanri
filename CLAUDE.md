@@ -1,6 +1,6 @@
-# Time Tracker PoC
+# KousuKanri
 
-Toggl Track のような D&D で時間管理ができるツールの PoC。
+時間管理できるツール。
 
 ## 技術スタック
 - Python + PySide6 (uv で管理)
@@ -10,7 +10,8 @@ Toggl Track のような D&D で時間管理ができるツールの PoC。
 
 ```
 tracker/
-├── main.py                    # エントリーポイント
+├── main.py                    # GUI エントリーポイント
+├── cli.py                     # CLI エントリーポイント (add/list)
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)
@@ -22,10 +23,10 @@ tracker/
 │   ├── timeline_scene.py      # QGraphicsScene (D&D 新規作成・重複制御・ダブルクリック)
 │   ├── task_block_item.py     # QGraphicsRectItem (移動・リサイズ・右クリック)
 │   ├── time_ruler_item.py     # 左側に時刻ラベル + 横グリッド線
-│   ├── task_list_view.py     # Toggl風タスクリスト (Phase 1.5)
+│   ├── task_list_view.py     # タスクリスト (Phase 1.5)
 │   ├── task_edit_dialog.py   # タスク編集ダイアログ
 │   ├── project_list_view.py  # プロジェクト管理 (Phase 1.7)
-│   ├── timer_widget.py       # Toggl風タイマーバー (Phase 1.8)
+│   ├── timer_widget.py       # タイマーバー (Phase 1.8)
 │   ├── date_nav_widget.py    # 日付ナビゲーション (◀/今日/▶ + カレンダー)
 │   ├── routine_view.py       # 定期タスク管理 (ルーティン登録・ワンクリック追加)
 │   ├── export_view.py        # 出力タブ (テキストエクスポート・クリップボードコピー)
@@ -102,7 +103,7 @@ tracker/
 - [x] views/main_window.py に「プロジェクト」タブ追加
 - [x] main.py に ProjectListView 接続
 
-### Phase 1.8: Toggl風タイマー計測機能（動作確認済み）
+### Phase 1.8: タイマー計測機能（動作確認済み）
 - [x] views/timer_widget.py (タスク名・プロジェクト・経過時間・▶/■ボタン)
 - [x] controllers/task_controller.py にタイマー管理追加 (QObject継承、QTimer)
 - [x] views/timeline_scene.py の update_task_block を位置・サイズ更新対応に拡張
@@ -129,12 +130,25 @@ tracker/
 - [x] views/main_window.py に「定期」タブ追加
 - [x] main.py に RoutineView 接続
 
-### Phase 2: SQLite 永続化 & パフォーマンス検証（未着手）
-- [ ] models/database.py (WAL, CRUD, インデックス)
-- [ ] controller に DB 接続
-- [ ] perf_counter で書き込み計測
+### Phase 2: SQLite 永続化（動作確認済み）
+- [x] models/database.py (WAL, CRUD, インデックス, ~/.tracker/tracker.db)
+- [x] controllers/task_controller.py に DB 書き込み追加 (全 CRUD + ルーティン管理)
+- [x] views/routine_view.py に routine_created/routine_deleted シグナル + set_routines 追加
+- [x] main.py に Database 生成・結線・has_data によるサンプルデータ条件分岐
+- [x] 日付切替時の遅延ロード (_reload_views_for_date で DB から取得)
+- [x] タイマー: tick では DB 書き込みなし、stop 時のみ書き込み
+
+### Phase 2.1: CLI ツール（動作確認済み）
+- [x] cli.py (argparse ベース、add/list サブコマンド)
+- [x] add: タスク名・開始・終了時刻・プロジェクト指定で DB に直接追加
+- [x] list: 日付指定でタスク一覧表示 (開始時刻順)
 
 ## 起動方法
 ```
+# GUI
 uv run python main.py
+
+# CLI
+uv run python cli.py add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
+uv run python cli.py list [--date <YYYY-MM-DD>]
 ```

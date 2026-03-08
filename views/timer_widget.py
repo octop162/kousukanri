@@ -12,7 +12,7 @@ from models.task import Task
 
 
 class TimerWidget(QWidget):
-    """Toggl-style timer bar: [task name] [project▼] [00:00:00] [+] [▶/■]"""
+    """Timer bar: [task name] [project▼] [00:00:00] [+] [▶/■]"""
 
     timer_started = Signal(str, str)       # (name, project_id)
     timer_stopped = Signal()

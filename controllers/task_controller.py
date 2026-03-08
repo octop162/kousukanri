@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, QTimer
 
 from models.task import Task
 from models.project import Project
+from models.routine import Routine
 from views.timeline_scene import TimelineScene
 from utils.constants import DEFAULT_BLOCK_COLOR, SNAP_MINUTES
 
@@ -24,6 +25,7 @@ class TaskController(QObject):
         self._date_nav_widget = None
         self._routine_view = None
         self._export_view = None
+        self._routines: list[Routine] = []
 
         # Timer state
         self._running_task_id: str | None = None
@@ -76,6 +78,8 @@ class TaskController(QObject):
         """Connect a RoutineView for one-click task creation."""
         self._routine_view = routine_view
         routine_view.task_add_requested.connect(self._on_task_add_requested)
+        routine_view.routine_created.connect(self._on_routine_created)
+        routine_view.routine_deleted.connect(self._on_routine_deleted)
 
     def set_export_view(self, export_view):
         """Connect an ExportView for text export."""
@@ -109,6 +113,12 @@ class TaskController(QObject):
 
     def _reload_views_for_date(self):
         """Clear and repopulate scene and list for the current date."""
+        # Lazy-load from DB if this date hasn't been loaded yet
+        if self._db is not None and self._current_date not in self._tasks_by_date:
+            date_str = self._current_date.isoformat()
+            for task in self._db.get_tasks_for_date(date_str):
+                self._tasks[task.id] = task
+
         ref = datetime(self._current_date.year, self._current_date.month, self._current_date.day)
 
         # Update scene
@@ -159,6 +169,8 @@ class TaskController(QObject):
             self._timer_widget.add_task_to_history(task)
 
         self._running_task_id = task.id
+        if self._db is not None:
+            self._db.insert_task(task)
         self._tick_timer.start()
 
     def _on_timer_tick(self):
@@ -189,6 +201,8 @@ class TaskController(QObject):
             if task.end_time <= task.start_time:
                 from datetime import timedelta
                 task.end_time = task.start_time + timedelta(seconds=1)
+            if self._db is not None:
+                self._db.update_task(task)
             if task_date == self._current_date:
                 self._scene.update_task_block(task)
                 if self._list_view is not None:
@@ -300,6 +314,9 @@ class TaskController(QObject):
     def _on_task_edited(self, task: Task):
         self._tasks[task.id] = task
         self._scene.update_task_block(task)
+        if self._db is not None:
+            self._db.update_task(task)
+        self._refresh_export_view()
 
     def _on_list_start_requested(self, name: str, project_id: str):
         """Start timer with given name and project from list view."""
@@ -339,12 +356,16 @@ class TaskController(QObject):
 
     def _on_project_created(self, project: Project):
         self._projects[project.id] = project
+        if self._db is not None:
+            self._db.insert_project(project)
         if self._project_list_view is not None:
             self._project_list_view.add_project(project)
         self._sync_projects_to_views()
 
     def _on_project_changed(self, project: Project):
         self._projects[project.id] = project
+        if self._db is not None:
+            self._db.update_project(project)
         if self._project_list_view is not None:
             self._project_list_view.update_project(project)
         self._sync_projects_to_views()
@@ -361,10 +382,14 @@ class TaskController(QObject):
         for p in projects:
             if p.id in self._projects:
                 self._projects[p.id].order = p.order
+                if self._db is not None:
+                    self._db.update_project(self._projects[p.id])
         self._sync_projects_to_views()
 
     def _on_project_deleted(self, project_id: str):
         self._projects.pop(project_id, None)
+        if self._db is not None:
+            self._db.delete_project(project_id)
         if self._project_list_view is not None:
             self._project_list_view.remove_project(project_id)
         self._sync_projects_to_views()
@@ -373,15 +398,46 @@ class TaskController(QObject):
             if task.project_id == project_id:
                 task.project_id = None
 
+    # ── routine signal handlers ────────────────────────────────
+
+    def _on_routine_created(self, routine: Routine):
+        self._routines.append(routine)
+        if self._db is not None:
+            self._db.insert_routine(routine)
+
+    def _on_routine_deleted(self, routine_id: str):
+        self._routines = [r for r in self._routines if r.id != routine_id]
+        if self._db is not None:
+            self._db.delete_routine(routine_id)
+
     # ── DB loading ────────────────────────────────────────────
 
-    def load_tasks(self, date=None):
-        """Load tasks from DB and add them to the scene."""
+    def load_from_db(self):
+        """Load all data from DB on startup: projects → tasks → routines."""
         if self._db is None:
             return
-        tasks = self._db.get_tasks_for_date(date)
-        for task in tasks:
+
+        # Projects
+        for project in self._db.get_all_projects():
+            self._projects[project.id] = project
+        self._sync_projects_to_views()
+        if self._project_list_view is not None:
+            for project in self._sorted_projects():
+                self._project_list_view.add_project(project)
+
+        # Tasks for current date
+        date_str = self._current_date.isoformat()
+        for task in self._db.get_tasks_for_date(date_str):
             self._tasks[task.id] = task
             self._scene.add_task_block(task)
             if self._list_view is not None:
                 self._list_view.add_task(task)
+            if self._timer_widget is not None:
+                self._timer_widget.add_task_to_history(task)
+
+        # Routines
+        self._routines = self._db.get_all_routines()
+        if self._routine_view is not None:
+            self._routine_view.set_routines(self._routines)
+
+        self._refresh_export_view()

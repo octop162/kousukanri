@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
                  export_view: ExportView = None,
                  parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Time Tracker PoC")
+        self.setWindowTitle("KousuKanri")
         self.resize(1200, 1000)
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)

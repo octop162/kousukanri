@@ -18,6 +18,8 @@ class RoutineView(QWidget):
     """Routine preset manager — register recurring tasks and add them with one click."""
 
     task_add_requested = Signal(Task)
+    routine_created = Signal(Routine)
+    routine_deleted = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -127,6 +129,11 @@ class RoutineView(QWidget):
         # Rebuild table to update project names/colors
         self._rebuild_table()
 
+    def set_routines(self, routines: list[Routine]):
+        """Set routines from controller (e.g. on startup load from DB)."""
+        self._routines = list(routines)
+        self._rebuild_table()
+
     def set_display_date(self, d: date):
         self._display_date = d
 
@@ -155,6 +162,7 @@ class RoutineView(QWidget):
         self._routines.append(routine)
         self._name_edit.clear()
         self._rebuild_table()
+        self.routine_created.emit(routine)
 
     # ── Table ──
 
@@ -202,8 +210,9 @@ class RoutineView(QWidget):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if reply == QMessageBox.StandardButton.Yes:
-                self._routines.pop(row)
+                removed = self._routines.pop(row)
                 self._rebuild_table()
+                self.routine_deleted.emit(removed.id)
 
     def _add_routine_as_task(self, routine: Routine):
         """Open TaskEditDialog pre-filled with routine data, then emit task_add_requested."""

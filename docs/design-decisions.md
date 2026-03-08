@@ -4,7 +4,7 @@
 
 **決定**: 時間軸を縦方向 (上→下 = 朝→夜) にした。
 
-**理由**: Toggl Track のカレンダービューと同じ直感的なマッピング。QGraphicsScene の座標系と自然に一致する。
+**理由**: カレンダービューと同じ直感的なマッピング。QGraphicsScene の座標系と自然に一致する。
 
 **実装**: `PIXELS_PER_HOUR = 200` で1時間あたり200pxを確保。24時間分 = 4800px の縦長シーン。
 
@@ -49,7 +49,7 @@ Scene → task_created Signal → Controller._on_task_created()
 
 **決定**: 左にタイムライン、右にサイドパネル (タスクリスト等) を QSplitter で分割。
 
-**理由**: ユーザーが好みに応じて幅を調整できる。Toggl Track のような2カラムレイアウト。
+**理由**: ユーザーが好みに応じて幅を調整できる。2カラムレイアウト。
 
 ## 7. タブ化 (Phase 1.6)
 
@@ -61,7 +61,7 @@ Scene → task_created Signal → Controller._on_task_created()
 
 **決定**: タスクにプロジェクトを紐付けると、プロジェクトの色がタスクブロックに反映される。プロジェクト削除時はタスクの色は維持し、project_id を None にする。
 
-**理由**: Toggl Track と同じ挙動。色でプロジェクトを視覚的に区別できる。
+**理由**: 色でプロジェクトを視覚的に区別できる。
 
 ## 9. Controller を QObject 継承に変更 (Phase 1.8)
 

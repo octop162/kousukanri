@@ -2,6 +2,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
+from models.database import Database
 from views.timeline_scene import TimelineScene
 from views.task_list_view import TaskListView
 from views.project_list_view import ProjectListView
@@ -35,6 +36,9 @@ def main():
     apply_theme(app, theme_name)
     theme_colors = get_theme_colors(theme_name)
 
+    # Database
+    db = Database()
+
     scene = TimelineScene(theme_colors=theme_colors)
     list_view = TaskListView()
     project_list_view = ProjectListView()
@@ -44,7 +48,7 @@ def main():
     date_nav_widget = DateNavWidget()
     routine_view = RoutineView()
     export_view = ExportView()
-    controller = TaskController(scene)
+    controller = TaskController(scene, database=db)
     controller.set_list_view(list_view)
     controller.set_project_list_view(project_list_view)
     controller.set_timer_widget(timer_widget)
@@ -55,32 +59,37 @@ def main():
     window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view)
     window.show()
 
-    # ── Sample data for testing ──
-    from datetime import datetime, timedelta
-    from models.project import Project
-    from models.task import Task
+    if db.has_data():
+        # Load existing data from DB
+        controller.load_from_db()
+    else:
+        # Create sample data for first run
+        from datetime import datetime, timedelta
+        from models.project import Project
+        from models.task import Task
 
-    now = datetime.now().replace(second=0, microsecond=0)
+        now = datetime.now().replace(second=0, microsecond=0)
 
-    proj_dev = Project(name="開発")
-    proj_mtg = Project(name="ミーティング")
-    proj_doc = Project(name="ドキュメント")
+        proj_dev = Project(name="開発")
+        proj_mtg = Project(name="ミーティング")
+        proj_doc = Project(name="ドキュメント")
 
-    for proj in [proj_dev, proj_mtg, proj_doc]:
-        controller._on_project_created(proj)
+        for proj in [proj_dev, proj_mtg, proj_doc]:
+            controller._on_project_created(proj)
 
-    sample_tasks = [
-        Task(name="コードレビュー", start_time=now - timedelta(hours=3), end_time=now - timedelta(hours=2),
-             color=proj_dev.color, project_id=proj_dev.id),
-        Task(name="週次定例", start_time=now - timedelta(hours=2), end_time=now - timedelta(hours=1),
-             color=proj_mtg.color, project_id=proj_mtg.id),
-        Task(name="API設計書作成", start_time=now - timedelta(hours=1), end_time=now,
-             color=proj_doc.color, project_id=proj_doc.id),
-    ]
-    for task in sample_tasks:
-        controller._on_task_created(task)
-        scene.add_task_block(task)
+        sample_tasks = [
+            Task(name="コードレビュー", start_time=now - timedelta(hours=3), end_time=now - timedelta(hours=2),
+                 color=proj_dev.color, project_id=proj_dev.id),
+            Task(name="週次定例", start_time=now - timedelta(hours=2), end_time=now - timedelta(hours=1),
+                 color=proj_mtg.color, project_id=proj_mtg.id),
+            Task(name="API設計書作成", start_time=now - timedelta(hours=1), end_time=now,
+                 color=proj_doc.color, project_id=proj_doc.id),
+        ]
+        for task in sample_tasks:
+            controller._on_task_created(task)
+            scene.add_task_block(task)
 
+    app.aboutToQuit.connect(db.close)
     sys.exit(app.exec())
 
 

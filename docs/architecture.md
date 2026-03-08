@@ -82,6 +82,6 @@ QMainWindow (900x700)
 | `views/time_ruler_item.py` | 左側の時刻ラベルとグリッド線 |
 | `views/task_list_view.py` | タスク一覧テーブル + 追加フォーム |
 | `views/project_list_view.py` | プロジェクトCRUD画面 |
-| `views/timer_widget.py` | Toggl風タイマーバー |
+| `views/timer_widget.py` | タイマーバー |
 | `views/settings_view.py` | 設定画面 (ダミー) |
 | `utils/constants.py` | 定数、座標変換関数 |

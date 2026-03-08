@@ -6,7 +6,36 @@ from PySide6.QtWidgets import (
     QAbstractItemView, QLabel, QMessageBox,
 )
 from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QIcon, QPixmap, QColor
+from PySide6.QtGui import QIcon, QPixmap, QColor, QDropEvent
+
+
+class _ReorderTableWidget(QTableWidget):
+    """QTableWidget subclass that handles row reorder via drag-and-drop."""
+
+    row_dropped = Signal(int, int)  # (source_row, dest_row)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setDropIndicatorShown(True)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self._drag_source_row: int | None = None
+
+    def startDrag(self, supportedActions):
+        self._drag_source_row = self.currentRow()
+        super().startDrag(supportedActions)
+
+    def dropEvent(self, event: QDropEvent):
+        dest_row = self.indexAt(event.position().toPoint()).row()
+        src_row = self._drag_source_row
+        if src_row is None or dest_row < 0 or src_row == dest_row:
+            event.ignore()
+            return
+        event.setDropAction(Qt.DropAction.IgnoreAction)
+        event.accept()
+        self.row_dropped.emit(src_row, dest_row)
 
 from models.task import Task
 from models.project import Project
@@ -20,6 +49,7 @@ class RoutineView(QWidget):
     task_add_requested = Signal(Task)
     routine_created = Signal(Routine)
     routine_deleted = Signal(str)
+    routine_order_changed = Signal(list)  # list[Routine] in new order
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -63,9 +93,9 @@ class RoutineView(QWidget):
         layout.addLayout(row2)
 
         # Routine table
-        self._table = QTableWidget(0, 6)
+        self._table = _ReorderTableWidget(0, 6)
         self._table.setHorizontalHeaderLabels(
-            ["", "名前", "プロジェクト", "開始", "終了", ""]
+            ["", "名前", "開始", "終了", "プロジェクト", ""]
         )
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -74,15 +104,18 @@ class RoutineView(QWidget):
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        for col in range(3, 6):
+        for col in range(2, 4):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self._table.setColumnWidth(4, 100)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
         self._table.setStyleSheet(
             "QTableWidget::item:selected { background: rgba(38, 79, 120, 100); }"
         )
 
         self._table.cellClicked.connect(self._on_cell_clicked)
+        self._table.row_dropped.connect(self._on_row_dropped)
         layout.addWidget(self._table)
 
     # ── Helpers ──
@@ -186,6 +219,11 @@ class RoutineView(QWidget):
 
         self._table.setItem(row, 1, QTableWidgetItem(routine.name))
 
+        self._table.setItem(row, 2, QTableWidgetItem(
+            f"{routine.start_hour:02d}:{routine.start_minute:02d}"))
+        self._table.setItem(row, 3, QTableWidgetItem(
+            f"{routine.end_hour:02d}:{routine.end_minute:02d}"))
+
         project = self._find_project(routine.project_id)
         proj_item = QTableWidgetItem(project.name if project else "")
         if project:
@@ -193,16 +231,21 @@ class RoutineView(QWidget):
             bg.setAlpha(80)
             from PySide6.QtGui import QBrush
             proj_item.setBackground(QBrush(bg))
-        self._table.setItem(row, 2, proj_item)
-
-        self._table.setItem(row, 3, QTableWidgetItem(
-            f"{routine.start_hour:02d}:{routine.start_minute:02d}"))
-        self._table.setItem(row, 4, QTableWidgetItem(
-            f"{routine.end_hour:02d}:{routine.end_minute:02d}"))
+        self._table.setItem(row, 4, proj_item)
 
         del_item = QTableWidgetItem("×")
         del_item.setTextAlignment(int(Qt.AlignmentFlag.AlignCenter))
         self._table.setItem(row, 5, del_item)
+
+    def _on_row_dropped(self, src: int, dest: int):
+        if src < 0 or src >= len(self._routines) or dest < 0 or dest >= len(self._routines):
+            return
+        routine = self._routines.pop(src)
+        self._routines.insert(dest, routine)
+        for i, r in enumerate(self._routines):
+            r.order = i
+        self._rebuild_table()
+        self.routine_order_changed.emit(list(self._routines))
 
     def _on_cell_clicked(self, row: int, col: int):
         if row < 0 or row >= len(self._routines):

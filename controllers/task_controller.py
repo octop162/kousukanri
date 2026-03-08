@@ -107,6 +107,7 @@ class TaskController(QObject):
         routine_view.task_add_requested.connect(self._on_task_add_requested)
         routine_view.routine_created.connect(self._on_routine_created)
         routine_view.routine_deleted.connect(self._on_routine_deleted)
+        routine_view.routine_order_changed.connect(self._on_routine_order_changed)
 
     def set_export_view(self, export_view):
         """Connect an ExportView for text export."""
@@ -626,6 +627,11 @@ class TaskController(QObject):
         if self._db is not None:
             self._db.insert_routine(routine)
         self._record_undo("routine_insert", [(None, replace(routine))])
+
+    def _on_routine_order_changed(self, routines: list):
+        self._routines = routines
+        if self._db is not None:
+            self._db.update_routine_orders(routines)
 
     def _on_routine_deleted(self, routine_id: str):
         deleted = None

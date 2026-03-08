@@ -47,6 +47,7 @@ class Database:
                 start_minute INTEGER NOT NULL,
                 end_hour INTEGER NOT NULL,
                 end_minute INTEGER NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
             );
 
@@ -166,11 +167,11 @@ class Database:
     def insert_routine(self, routine: Routine):
         self._conn.execute(
             "INSERT OR REPLACE INTO routines "
-            "(id, name, project_id, start_hour, start_minute, end_hour, end_minute) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "(id, name, project_id, start_hour, start_minute, end_hour, end_minute, sort_order) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (routine.id, routine.name, routine.project_id,
              routine.start_hour, routine.start_minute,
-             routine.end_hour, routine.end_minute),
+             routine.end_hour, routine.end_minute, routine.order),
         )
         self._conn.commit()
 
@@ -180,17 +181,25 @@ class Database:
 
     def get_all_routines(self) -> list[Routine]:
         rows = self._conn.execute(
-            "SELECT id, name, project_id, start_hour, start_minute, end_hour, end_minute "
-            "FROM routines"
+            "SELECT id, name, project_id, start_hour, start_minute, end_hour, end_minute, sort_order "
+            "FROM routines ORDER BY sort_order"
         ).fetchall()
         return [
             Routine(
                 id=r[0], name=r[1], project_id=r[2],
                 start_hour=r[3], start_minute=r[4],
-                end_hour=r[5], end_minute=r[6],
+                end_hour=r[5], end_minute=r[6], order=r[7],
             )
             for r in rows
         ]
+
+    def update_routine_orders(self, routines: list[Routine]):
+        """Bulk-update sort_order for all routines."""
+        self._conn.executemany(
+            "UPDATE routines SET sort_order=? WHERE id=?",
+            [(r.order, r.id) for r in routines],
+        )
+        self._conn.commit()
 
     # ── Utility ──
 

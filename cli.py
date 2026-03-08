@@ -104,24 +104,50 @@ def _fmt_time(seconds):
     return f"{h}h {m:02d}m"
 
 
-def _aggregate_by_project(tasks, proj_map):
-    """Aggregate task durations by project name. Returns dict {name: seconds}."""
+def _aggregate_by_project(tasks, proj_map, detail=False):
+    """Aggregate task durations by project name.
+
+    Returns (totals, details):
+      totals: {project_name: seconds}
+      details: {project_name: {task_name: seconds}} (only if detail=True, else {})
+    """
     totals = {}
+    details = {}
     for t in tasks:
-        name = proj_map.get(t.project_id, "(なし)") if t.project_id else "(なし)"
+        proj_name = proj_map.get(t.project_id, "(なし)") if t.project_id else "(なし)"
         secs = (t.end_time - t.start_time).total_seconds()
-        totals[name] = totals.get(name, 0) + secs
-    return totals
+        totals[proj_name] = totals.get(proj_name, 0) + secs
+        if detail:
+            details.setdefault(proj_name, {})
+            details[proj_name][t.name] = details[proj_name].get(t.name, 0) + secs
+    return totals, details
 
 
-def _print_report_table(totals):
+def _merge_aggregates(dst_totals, dst_details, src_totals, src_details):
+    """Merge src aggregates into dst (in-place)."""
+    for name, secs in src_totals.items():
+        dst_totals[name] = dst_totals.get(name, 0) + secs
+    for proj, tasks in src_details.items():
+        dst_details.setdefault(proj, {})
+        for task_name, secs in tasks.items():
+            dst_details[proj][task_name] = dst_details[proj].get(task_name, 0) + secs
+
+
+def _print_report_table(totals, details=None):
     """Print a formatted report table from totals dict."""
     # Sort: named projects alphabetically, "(なし)" last
     sorted_names = sorted(n for n in totals if n != "(なし)")
     if "(なし)" in totals:
         sorted_names.append("(なし)")
 
-    max_dw = max(_display_width(n) for n in sorted_names)
+    # Calculate max width considering detail lines
+    all_labels = list(sorted_names) + ["合計"]
+    if details:
+        for proj in sorted_names:
+            if proj in details:
+                for task_name in details[proj]:
+                    all_labels.append("  " + task_name)
+    max_dw = max(_display_width(l) for l in all_labels)
     line_width = max(max_dw + 2 + 10, 30)
 
     print("─" * line_width)
@@ -131,6 +157,12 @@ def _print_report_table(totals):
         grand_total += secs
         pad = " " * (max_dw - _display_width(name) + 2)
         print(f"{name}{pad}{_fmt_time(secs)}")
+        if details and name in details:
+            for task_name in sorted(details[name]):
+                label = "  " + task_name
+                tsecs = details[name][task_name]
+                tpad = " " * (max_dw - _display_width(label) + 2)
+                print(f"{label}{tpad}{_fmt_time(tsecs)}")
     print("─" * line_width)
     pad = " " * (max_dw - _display_width("合計") + 2)
     print(f"合計{pad}{_fmt_time(grand_total)}")
@@ -151,8 +183,9 @@ def cmd_report(args, db: Database):
         return
 
     proj_map = {p.id: p.name for p in db.get_all_projects()}
-    totals = _aggregate_by_project(tasks, proj_map)
-    _print_report_table(totals)
+    detail = getattr(args, "detail", False)
+    totals, details = _aggregate_by_project(tasks, proj_map, detail=detail)
+    _print_report_table(totals, details if detail else None)
 
 
 def _resolve_date_range(args) -> tuple[date, date]:
@@ -181,6 +214,7 @@ def _iter_date_range(start_date: date, end_date: date):
 
 def cmd_reports_by_day(args, db: Database):
     start_date, end_date = _resolve_date_range(args)
+    detail = getattr(args, "detail", False)
 
     proj_map = {p.id: p.name for p in db.get_all_projects()}
     grand_total = 0
@@ -195,11 +229,11 @@ def cmd_reports_by_day(args, db: Database):
         if not tasks:
             continue
         days_with_tasks += 1
-        totals = _aggregate_by_project(tasks, proj_map)
+        totals, details = _aggregate_by_project(tasks, proj_map, detail=detail)
         day_total = sum(totals.values())
         grand_total += day_total
         print(f"■ {d.isoformat()}  ({_fmt_time(day_total)})")
-        _print_report_table(totals)
+        _print_report_table(totals, details if detail else None)
         print()
 
     if days_with_tasks == 0:
@@ -211,9 +245,11 @@ def cmd_reports_by_day(args, db: Database):
 
 def cmd_reports(args, db: Database):
     start_date, end_date = _resolve_date_range(args)
+    detail = getattr(args, "detail", False)
 
     proj_map = {p.id: p.name for p in db.get_all_projects()}
     totals = {}
+    all_details = {}
     days_with_tasks = 0
 
     for d in _iter_date_range(start_date, end_date):
@@ -221,9 +257,8 @@ def cmd_reports(args, db: Database):
         if not tasks:
             continue
         days_with_tasks += 1
-        day_totals = _aggregate_by_project(tasks, proj_map)
-        for name, secs in day_totals.items():
-            totals[name] = totals.get(name, 0) + secs
+        day_totals, day_details = _aggregate_by_project(tasks, proj_map, detail=detail)
+        _merge_aggregates(totals, all_details, day_totals, day_details)
 
     days = (end_date - start_date).days + 1
     print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} 集計レポート（{days}日間）")
@@ -231,7 +266,7 @@ def cmd_reports(args, db: Database):
         print("タスクはありません")
         return
 
-    _print_report_table(totals)
+    _print_report_table(totals, all_details if detail else None)
     print(f"\n記録日数: {days_with_tasks}日")
 
 
@@ -273,18 +308,21 @@ def main():
     p_report = sub.add_parser("report", help="プロジェクト別レポート")
     p_report.add_argument("--date", help="日付 (YYYY-MM-DD, デフォルト: 今日)")
     p_report.add_argument("--yesterday", action="store_true", help="昨日のレポート")
+    p_report.add_argument("--detail", action="store_true", help="タスク別の内訳を表示")
 
     # reports-by-day
     p_rbd = sub.add_parser("reports-by-day", help="期間内の日別レポート")
     p_rbd.add_argument("--from", dest="from", help="開始日 (YYYY-MM-DD)")
     p_rbd.add_argument("--to", help="終了日 (YYYY-MM-DD, デフォルト: 今日)")
     p_rbd.add_argument("--since", help="過去N日 (例: 30, 7d)")
+    p_rbd.add_argument("--detail", action="store_true", help="タスク別の内訳を表示")
 
     # reports
     p_rs = sub.add_parser("reports", help="期間内のプロジェクト別集計")
     p_rs.add_argument("--from", dest="from", help="開始日 (YYYY-MM-DD)")
     p_rs.add_argument("--to", help="終了日 (YYYY-MM-DD, デフォルト: 今日)")
     p_rs.add_argument("--since", help="過去N日 (例: 30, 7d)")
+    p_rs.add_argument("--detail", action="store_true", help="タスク別の内訳を表示")
 
     args = parser.parse_args()
     if not args.command:

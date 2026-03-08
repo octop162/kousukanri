@@ -160,10 +160,27 @@ class TaskBlockItem(QGraphicsRectItem):
         start = y_to_time(scene_y, self._reference_date)
         end = y_to_time(scene_y + h, self._reference_date)
 
+        orig_start = self.task.start_time
+        orig_end = self.task.end_time
+
         if self._scene is not None:
-            result = self._scene.resolve_overlap(start, end, exclude=self)
-            if result is not None:
-                start, end = result
+            blocks = self._scene._get_blocks(exclude=self)
+
+            # Top resize: start moved earlier → snap to overlapping block boundaries
+            if start < orig_start:
+                for b in blocks:
+                    if b.task.start_time < orig_start and b.task.end_time > start:
+                        start = max(start, b.task.end_time)
+
+            # Bottom resize: end moved later → snap to overlapping block boundaries
+            if end > orig_end:
+                for b in blocks:
+                    if b.task.end_time > orig_end and b.task.start_time < end:
+                        end = min(end, b.task.start_time)
+
+        # If invalid range after snapping, revert to original
+        if start >= end:
+            start, end = orig_start, orig_end
 
         self.task.start_time = start
         self.task.end_time = end

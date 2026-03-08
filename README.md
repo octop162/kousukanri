@@ -10,7 +10,7 @@
 - **ルーティン** — 定期タスクをプリセット登録してワンクリック追加
 - **エクスポート** — テキスト形式でクリップボードにコピー
 - **テーマ** — Dark / Light / Sky / Hacker / Monokai / Solarized
-- **CLI** — ターミナルからタスク追加・一覧表示
+- **CLI** — ターミナルからタスク追加・一覧表示・プロジェクト別レポート
 - **データ永続化** — SQLite (`~/.tracker/tracker.db`)
 
 ## セットアップ
@@ -38,12 +38,24 @@ uv run python main.py
 
 ```bash
 # タスク追加
-uv run python cli.py add "コードレビュー" 09:00 10:30
-uv run python cli.py add "定例会" 11:00 12:00 --project ミーティング
+KousuKanri-cli.exe add "コードレビュー" 09:00 10:30
+KousuKanri-cli.exe add "定例会" 11:00 12:00 --project ミーティング
 
 # タスク一覧
-uv run python cli.py list
-uv run python cli.py list --date 2026-03-07
+KousuKanri-cli.exe list
+KousuKanri-cli.exe list --date 2026-03-07
+
+# プロジェクト管理
+KousuKanri-cli.exe add-project "ミーティング" --color "#4CAF50"
+KousuKanri-cli.exe list-projects
+
+# レポート（プロジェクト別集計）
+KousuKanri-cli.exe report
+KousuKanri-cli.exe report --date 2026-03-07
+
+# 過去30日レポート
+KousuKanri-cli.exe report-30d
+KousuKanri-cli.exe report-30d --date 2026-03-01
 ```
 
 ## ビルド (exe)

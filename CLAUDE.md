@@ -11,7 +11,7 @@
 ```
 tracker/
 ├── main.py                    # GUI エントリーポイント
-├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects)
+├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects/report)
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)
@@ -160,11 +160,19 @@ tracker/
 ## 起動方法
 ```
 # GUI
-uv run python main.py
+KousuKanri.exe
 
 # CLI
-uv run python cli.py add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
-uv run python cli.py list [--date <YYYY-MM-DD>]
-uv run python cli.py add-project <name> [--color <#HEX>]
-uv run python cli.py list-projects
+KousuKanri-cli.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
+KousuKanri-cli.exe list [--date <YYYY-MM-DD>]
+KousuKanri-cli.exe add-project <name> [--color <#HEX>]
+KousuKanri-cli.exe list-projects
+KousuKanri-cli.exe report [--date <YYYY-MM-DD>]
+KousuKanri-cli.exe report-30d [--date <YYYY-MM-DD>]
+```
+
+### 開発時
+```
+uv run python main.py       # GUI
+uv run python cli.py <cmd>   # CLI
 ```

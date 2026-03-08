@@ -52,6 +52,7 @@ class TaskController(QObject):
         list_view.tasks_bulk_edited.connect(self._on_tasks_bulk_edited)
         list_view.task_delete_requested.connect(self._on_list_delete_requested)
         list_view.task_start_requested.connect(self._on_list_start_requested)
+        list_view.task_apply_all_requested.connect(self._on_task_apply_all)
 
     def set_project_list_view(self, project_list_view):
         """Connect a ProjectListView for project CRUD."""
@@ -333,6 +334,49 @@ class TaskController(QObject):
         self._scene.update_task_block(task)
         if self._db is not None:
             self._db.update_task(task)
+        self._refresh_export_view()
+
+    def _on_task_apply_all(self, orig_name: str, orig_project_id: str,
+                            new_name: str, new_project_id: str):
+        """Apply name/project changes to all tasks matching original name+project."""
+        if self._db is None:
+            return
+        orig_pid = orig_project_id or None
+        new_pid = new_project_id or None
+        project = self._projects.get(new_pid) if new_pid else None
+        new_color = project.color if project else DEFAULT_BLOCK_COLOR
+
+        # Get all matching tasks from DB (excluding the one already edited by _on_task_edited)
+        matching = self._db.get_tasks_by_name_and_project(orig_name, orig_pid)
+
+        updated = []
+        for task in matching:
+            task.name = new_name
+            task.project_id = new_pid
+            task.color = new_color
+            updated.append(task)
+
+        if not updated:
+            return
+
+        self._db.bulk_update_tasks(updated)
+
+        # Update in-memory cache and views for tasks on currently loaded dates
+        for task in updated:
+            task_date = task.start_time.date()
+            if task_date in self._tasks_by_date:
+                cached = self._tasks_by_date[task_date].get(task.id)
+                if cached is not None:
+                    cached.name = new_name
+                    cached.project_id = new_pid
+                    cached.color = new_color
+
+        # Refresh current date views
+        for task in self._tasks.values():
+            if task.name == new_name and task.project_id == new_pid:
+                self._scene.update_task_block(task)
+        if self._list_view is not None:
+            self._list_view.set_tasks(list(self._tasks.values()))
         self._refresh_export_view()
 
     def _on_tasks_bulk_edited(self, tasks: list):

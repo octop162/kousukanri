@@ -126,6 +126,41 @@ class Database:
             for r in rows
         ]
 
+    def get_tasks_by_name_and_project(self, name: str, project_id: str | None) -> list[Task]:
+        """Get all tasks matching given name and project_id."""
+        if project_id is None:
+            rows = self._conn.execute(
+                "SELECT id, name, start_time, end_time, color, project_id "
+                "FROM tasks WHERE name = ? AND project_id IS NULL",
+                (name,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT id, name, start_time, end_time, color, project_id "
+                "FROM tasks WHERE name = ? AND project_id = ?",
+                (name, project_id),
+            ).fetchall()
+        return [
+            Task(
+                id=r[0], name=r[1],
+                start_time=datetime.fromisoformat(r[2]),
+                end_time=datetime.fromisoformat(r[3]),
+                color=r[4], project_id=r[5],
+            )
+            for r in rows
+        ]
+
+    def bulk_update_tasks(self, tasks: list[Task]):
+        """Update multiple tasks in a single transaction."""
+        with self._conn:
+            for task in tasks:
+                self._conn.execute(
+                    "UPDATE tasks SET name=?, start_time=?, end_time=?, color=?, project_id=? WHERE id=?",
+                    (task.name,
+                     task.start_time.isoformat(), task.end_time.isoformat(),
+                     task.color, task.project_id, task.id),
+                )
+
     # ── Routine CRUD ──
 
     def insert_routine(self, routine: Routine):

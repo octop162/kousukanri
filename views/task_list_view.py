@@ -17,6 +17,7 @@ class TaskListView(QWidget):
     tasks_bulk_edited = Signal(list)  # list of Task
     task_delete_requested = Signal(str)  # task id
     task_start_requested = Signal(str, str)  # (name, project_id)
+    task_apply_all_requested = Signal(str, str, str, str)  # (orig_name, orig_project_id, new_name, new_project_id)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -114,6 +115,9 @@ class TaskListView(QWidget):
         if result is None:
             return
 
+        orig_name = task.name
+        orig_project_id = task.project_id
+
         task.name = result["name"]
         task.start_time = result["start_time"]
         task.end_time = result["end_time"]
@@ -124,6 +128,14 @@ class TaskListView(QWidget):
 
         self._update_row(row, task)
         self.task_edited.emit(task)
+
+        if result.get("apply_to_all"):
+            self.task_apply_all_requested.emit(
+                orig_name,
+                orig_project_id or "",
+                result["name"],
+                result["project_id"] or "",
+            )
 
     def _open_bulk_edit_dialog(self, rows: list[int]):
         from views.task_edit_dialog import BulkEditDialog

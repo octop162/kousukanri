@@ -11,7 +11,7 @@
 ```
 tracker/
 ├── main.py                    # GUI エントリーポイント
-├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects/report/report-30d)
+├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects/report/reports/reports-by-day)
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)
@@ -139,13 +139,14 @@ tracker/
 - [x] タイマー: tick では DB 書き込みなし、stop 時のみ書き込み
 
 ### Phase 2.1: CLI ツール（動作確認済み）
-- [x] cli.py (argparse ベース、add/list/add-project/list-projects/report/report-30d)
+- [x] cli.py (argparse ベース、add/list/add-project/list-projects/report/reports/reports-by-day)
 - [x] add: タスク名・開始・終了時刻・プロジェクト指定で DB に直接追加
 - [x] list: 日付指定でタスク一覧表示 (開始時刻順)
 - [x] add-project: プロジェクト追加 (名前・色指定)
 - [x] list-projects: プロジェクト一覧表示
-- [x] report: プロジェクト別レポート (--date, --yesterday)
-- [x] report-30d: 過去30日の日ごとレポート (--date)
+- [x] report: 1日のプロジェクト別レポート (--date, --yesterday)
+- [x] reports: 期間内のプロジェクト別集計 (--from, --to, --since)
+- [x] reports-by-day: 期間内の日別レポート (--from, --to, --since)
 
 ### Phase 2.2: CI/CD・ビルド・配布（動作確認済み）
 - [x] .github/workflows/build-release.yml (Nuitka standalone ビルド)
@@ -162,8 +163,8 @@ tracker/
 - [x] QLocalServer/Socket による多重起動防止（既存ウィンドウを前面に復帰）
 
 ### Phase 2.4: CLI レポート・一括編集（動作確認済み）
-- [x] report: プロジェクト別レポート (--date, --yesterday)
-- [x] report-30d: 過去30日の日ごとレポート (--date)
+- [x] reports: 期間内のプロジェクト別集計 (--from, --to, --since)
+- [x] reports-by-day: 期間内の日別レポート (--from, --to, --since)
 - [x] タスクリストで複数選択 → 右クリック「一括編集」（名前・プロジェクトをまとめて変更）
 - [x] タイマー開始時に表示日が今日でなければ自動で今日に切り替え
 
@@ -174,11 +175,12 @@ kousu-kanri-gui.exe
 
 # CLI
 kousu-kanri.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
-kousu-kanri.exe list [--date <YYYY-MM-DD>]
+kousu-kanri.exe list [--date <YYYY-MM-DD>] [--yesterday]
 kousu-kanri.exe add-project <name> [--color <#HEX>]
 kousu-kanri.exe list-projects
 kousu-kanri.exe report [--date <YYYY-MM-DD>] [--yesterday]
-kousu-kanri.exe report-30d [--date <YYYY-MM-DD>]
+kousu-kanri.exe reports [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>]
+kousu-kanri.exe reports-by-day [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>]
 ```
 
 ### 開発時

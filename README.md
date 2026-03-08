@@ -32,20 +32,25 @@ kousu-kanri.exe add "定例会" 11:00 12:00 --project ミーティング
 
 # タスク一覧
 kousu-kanri.exe list
+kousu-kanri.exe list --yesterday
 kousu-kanri.exe list --date 2026-03-07
 
 # プロジェクト管理
 kousu-kanri.exe add-project "ミーティング" --color "#4CAF50"
 kousu-kanri.exe list-projects
 
-# レポート（プロジェクト別集計）
+# レポート（1日のプロジェクト別集計）
 kousu-kanri.exe report
 kousu-kanri.exe report --yesterday
 kousu-kanri.exe report --date 2026-03-07
 
-# 過去30日レポート
-kousu-kanri.exe report-30d
-kousu-kanri.exe report-30d --date 2026-03-01
+# 期間集計（プロジェクト別小計）
+kousu-kanri.exe reports --since 7d
+kousu-kanri.exe reports --from 2026-03-01 --to 2026-03-08
+
+# 期間の日別レポート
+kousu-kanri.exe reports-by-day --since 30
+kousu-kanri.exe reports-by-day --from 2026-03-01 --to 2026-03-08
 ```
 
 ## セットアップ

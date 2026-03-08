@@ -50,7 +50,12 @@ def cmd_add(args, db: Database):
 
 
 def cmd_list(args, db: Database):
-    target_date = args.date if args.date else date.today().isoformat()
+    if args.yesterday:
+        target_date = (date.today() - timedelta(days=1)).isoformat()
+    elif args.date:
+        target_date = args.date
+    else:
+        target_date = date.today().isoformat()
     tasks = db.get_tasks_for_date(target_date)
 
     if not tasks:
@@ -150,19 +155,42 @@ def cmd_report(args, db: Database):
     _print_report_table(totals)
 
 
-def cmd_report_30d(args, db: Database):
-    end_date = date.fromisoformat(args.date) if args.date else date.today()
-    start_date = end_date - timedelta(days=29)
+def _resolve_date_range(args) -> tuple[date, date]:
+    """Resolve --from/--to/--since into (start_date, end_date)."""
+    end_date = date.fromisoformat(args.to) if args.to else date.today()
+    if args.since:
+        try:
+            days = int(args.since.rstrip("d"))
+        except ValueError:
+            print("エラー: --since は数値または '30d' 形式で指定してください", file=sys.stderr)
+            sys.exit(1)
+        start_date = end_date - timedelta(days=days - 1)
+    elif getattr(args, "from"):
+        start_date = date.fromisoformat(getattr(args, "from"))
+    else:
+        start_date = end_date - timedelta(days=29)
+    return start_date, end_date
+
+
+def _iter_date_range(start_date: date, end_date: date):
+    d = start_date
+    while d <= end_date:
+        yield d
+        d += timedelta(days=1)
+
+
+def cmd_reports_by_day(args, db: Database):
+    start_date, end_date = _resolve_date_range(args)
 
     proj_map = {p.id: p.name for p in db.get_all_projects()}
     grand_total = 0
     days_with_tasks = 0
 
-    print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} レポート（30日間）")
+    days = (end_date - start_date).days + 1
+    print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} 日別レポート（{days}日間）")
     print()
 
-    for i in range(30):
-        d = start_date + timedelta(days=i)
+    for d in _iter_date_range(start_date, end_date):
         tasks = db.get_tasks_for_date(d.isoformat())
         if not tasks:
             continue
@@ -179,6 +207,32 @@ def cmd_report_30d(args, db: Database):
         return
 
     print(f"記録日数: {days_with_tasks}日 / 合計: {_fmt_time(grand_total)}")
+
+
+def cmd_reports(args, db: Database):
+    start_date, end_date = _resolve_date_range(args)
+
+    proj_map = {p.id: p.name for p in db.get_all_projects()}
+    totals = {}
+    days_with_tasks = 0
+
+    for d in _iter_date_range(start_date, end_date):
+        tasks = db.get_tasks_for_date(d.isoformat())
+        if not tasks:
+            continue
+        days_with_tasks += 1
+        day_totals = _aggregate_by_project(tasks, proj_map)
+        for name, secs in day_totals.items():
+            totals[name] = totals.get(name, 0) + secs
+
+    days = (end_date - start_date).days + 1
+    print(f"{start_date.isoformat()} 〜 {end_date.isoformat()} 集計レポート（{days}日間）")
+    if not totals:
+        print("タスクはありません")
+        return
+
+    _print_report_table(totals)
+    print(f"\n記録日数: {days_with_tasks}日")
 
 
 def cmd_list_projects(args, db: Database):
@@ -205,6 +259,7 @@ def main():
     # list
     p_list = sub.add_parser("list", help="タスク一覧")
     p_list.add_argument("--date", help="日付 (YYYY-MM-DD, デフォルト: 今日)")
+    p_list.add_argument("--yesterday", action="store_true", help="昨日のタスク一覧")
 
     # add-project
     p_ap = sub.add_parser("add-project", help="プロジェクトを追加")
@@ -219,9 +274,17 @@ def main():
     p_report.add_argument("--date", help="日付 (YYYY-MM-DD, デフォルト: 今日)")
     p_report.add_argument("--yesterday", action="store_true", help="昨日のレポート")
 
-    # report-30d
-    p_r30 = sub.add_parser("report-30d", help="過去30日のプロジェクト別レポート")
-    p_r30.add_argument("--date", help="終了日 (YYYY-MM-DD, デフォルト: 今日)")
+    # reports-by-day
+    p_rbd = sub.add_parser("reports-by-day", help="期間内の日別レポート")
+    p_rbd.add_argument("--from", dest="from", help="開始日 (YYYY-MM-DD)")
+    p_rbd.add_argument("--to", help="終了日 (YYYY-MM-DD, デフォルト: 今日)")
+    p_rbd.add_argument("--since", help="過去N日 (例: 30, 7d)")
+
+    # reports
+    p_rs = sub.add_parser("reports", help="期間内のプロジェクト別集計")
+    p_rs.add_argument("--from", dest="from", help="開始日 (YYYY-MM-DD)")
+    p_rs.add_argument("--to", help="終了日 (YYYY-MM-DD, デフォルト: 今日)")
+    p_rs.add_argument("--since", help="過去N日 (例: 30, 7d)")
 
     args = parser.parse_args()
     if not args.command:
@@ -240,8 +303,10 @@ def main():
             cmd_list_projects(args, db)
         elif args.command == "report":
             cmd_report(args, db)
-        elif args.command == "report-30d":
-            cmd_report_30d(args, db)
+        elif args.command == "reports-by-day":
+            cmd_reports_by_day(args, db)
+        elif args.command == "reports":
+            cmd_reports(args, db)
     finally:
         db.close()
 

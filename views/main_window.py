@@ -1,9 +1,10 @@
 from pathlib import Path
 
 from PySide6.QtWidgets import (QMainWindow, QSplitter, QTabWidget, QWidget,
-                                QVBoxLayout, QHBoxLayout, QPushButton, QLabel)
+                                QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
+                                QSystemTrayIcon, QMenu)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QAction
 
 from views.timeline_view import TimelineView
 from views.timeline_scene import TimelineScene
@@ -99,5 +100,46 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(splitter)
 
+        # System tray
+        self._tray = QSystemTrayIcon(self)
+        self._tray.setIcon(self.windowIcon())
+        self._tray.setToolTip("KousuKanri")
+        tray_menu = QMenu()
+        show_action = QAction("表示", self)
+        show_action.triggered.connect(self._restore_from_tray)
+        quit_action = QAction("終了", self)
+        quit_action.triggered.connect(self._quit_app)
+        tray_menu.addAction(show_action)
+        tray_menu.addSeparator()
+        tray_menu.addAction(quit_action)
+        self._tray.setContextMenu(tray_menu)
+        self._tray.activated.connect(self._on_tray_activated)
+
     def _on_zoom_changed(self, level: float):
         self._zoom_label.setText(f"{int(level * 100)}%")
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == event.Type.WindowStateChange:
+            if self.isMinimized():
+                self.hide()
+                self._tray.show()
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self._tray.show()
+
+    def _on_tray_activated(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self._restore_from_tray()
+
+    def _restore_from_tray(self):
+        self._tray.hide()
+        self.showNormal()
+        self.activateWindow()
+
+    def _quit_app(self):
+        self._tray.hide()
+        from PySide6.QtWidgets import QApplication
+        QApplication.quit()

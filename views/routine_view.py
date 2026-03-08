@@ -38,12 +38,12 @@ class RoutineView(QWidget):
         layout.addWidget(form_label)
 
         row1 = QHBoxLayout()
-        self._project_combo = QComboBox()
-        self._project_combo.addItem("(なし)", None)
-        row1.addWidget(self._project_combo)
         self._name_edit = QLineEdit()
         self._name_edit.setPlaceholderText("タスク名")
         row1.addWidget(self._name_edit, 1)
+        self._project_combo = QComboBox()
+        self._project_combo.addItem("(なし)", None)
+        row1.addWidget(self._project_combo)
         layout.addLayout(row1)
 
         row2 = QHBoxLayout()
@@ -64,16 +64,17 @@ class RoutineView(QWidget):
         # Routine table
         self._table = QTableWidget(0, 6)
         self._table.setHorizontalHeaderLabels(
-            ["プロジェクト", "名前", "開始", "終了", "", ""]
+            ["", "名前", "プロジェクト", "開始", "終了", ""]
         )
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.verticalHeader().setVisible(False)
 
         header = self._table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        for col in range(2, 6):
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        for col in range(3, 6):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
         self._table.cellClicked.connect(self._on_cell_clicked)
@@ -174,6 +175,12 @@ class RoutineView(QWidget):
             self._update_row(row, routine)
 
     def _update_row(self, row: int, routine: Routine):
+        add_item = QTableWidgetItem("＋")
+        add_item.setTextAlignment(int(Qt.AlignmentFlag.AlignCenter))
+        self._table.setItem(row, 0, add_item)
+
+        self._table.setItem(row, 1, QTableWidgetItem(routine.name))
+
         project = self._find_project(routine.project_id)
         proj_item = QTableWidgetItem(project.name if project else "")
         if project:
@@ -181,17 +188,12 @@ class RoutineView(QWidget):
             bg.setAlpha(80)
             from PySide6.QtGui import QBrush
             proj_item.setBackground(QBrush(bg))
-        self._table.setItem(row, 0, proj_item)
+        self._table.setItem(row, 2, proj_item)
 
-        self._table.setItem(row, 1, QTableWidgetItem(routine.name))
-        self._table.setItem(row, 2, QTableWidgetItem(
-            f"{routine.start_hour:02d}:{routine.start_minute:02d}"))
         self._table.setItem(row, 3, QTableWidgetItem(
+            f"{routine.start_hour:02d}:{routine.start_minute:02d}"))
+        self._table.setItem(row, 4, QTableWidgetItem(
             f"{routine.end_hour:02d}:{routine.end_minute:02d}"))
-
-        add_item = QTableWidgetItem("追加")
-        add_item.setTextAlignment(int(Qt.AlignmentFlag.AlignCenter))
-        self._table.setItem(row, 4, add_item)
 
         del_item = QTableWidgetItem("×")
         del_item.setTextAlignment(int(Qt.AlignmentFlag.AlignCenter))
@@ -201,7 +203,7 @@ class RoutineView(QWidget):
         if row < 0 or row >= len(self._routines):
             return
         routine = self._routines[row]
-        if col == 4:
+        if col == 0:
             self._add_routine_as_task(routine)
         elif col == 5:
             reply = QMessageBox.question(

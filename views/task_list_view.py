@@ -29,15 +29,16 @@ class TaskListView(QWidget):
 
         self._table = QTableWidget(0, 6)
         self._table.setHorizontalHeaderLabels(
-            ["タスク名", "開始", "終了", "所要時間", "プロジェクト", ""]
+            ["", "タスク名", "開始", "終了", "所要時間", "プロジェクト"]
         )
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.verticalHeader().setVisible(False)
 
         header = self._table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for col in range(1, 6):
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        for col in range(2, 6):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
         self._table.cellClicked.connect(self._on_cell_clicked)
@@ -49,7 +50,7 @@ class TaskListView(QWidget):
     # ── Cell click (start button) ──
 
     def _on_cell_clicked(self, row: int, col: int):
-        if col == 5 and 0 <= row < len(self._tasks):
+        if col == 0 and 0 <= row < len(self._tasks):
             task = self._tasks[row]
             self.task_start_requested.emit(task.name, task.project_id or "")
 
@@ -156,9 +157,13 @@ class TaskListView(QWidget):
             self._update_row(row, task)
 
     def _update_row(self, row: int, task: Task):
-        self._table.setItem(row, 0, QTableWidgetItem(task.name))
-        self._table.setItem(row, 1, QTableWidgetItem(task.start_time.strftime("%H:%M:%S")))
-        self._table.setItem(row, 2, QTableWidgetItem(task.end_time.strftime("%H:%M:%S")))
+        start_item = QTableWidgetItem("▶")
+        start_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._table.setItem(row, 0, start_item)
+
+        self._table.setItem(row, 1, QTableWidgetItem(task.name))
+        self._table.setItem(row, 2, QTableWidgetItem(task.start_time.strftime("%H:%M:%S")))
+        self._table.setItem(row, 3, QTableWidgetItem(task.end_time.strftime("%H:%M:%S")))
 
         delta = task.end_time - task.start_time
         total_sec = int(delta.total_seconds())
@@ -170,7 +175,7 @@ class TaskListView(QWidget):
             duration_str = f"{m}m {s}s"
         else:
             duration_str = f"{s}s"
-        self._table.setItem(row, 3, QTableWidgetItem(duration_str))
+        self._table.setItem(row, 4, QTableWidgetItem(duration_str))
 
         project = self._find_project(task.project_id)
         project_name = project.name if project else ""
@@ -179,8 +184,4 @@ class TaskListView(QWidget):
             bg = QColor(project.color)
             bg.setAlpha(80)
             proj_item.setBackground(QBrush(bg))
-        self._table.setItem(row, 4, proj_item)
-
-        start_item = QTableWidgetItem("▶")
-        start_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._table.setItem(row, 5, start_item)
+        self._table.setItem(row, 5, proj_item)

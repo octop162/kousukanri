@@ -6,6 +6,7 @@ from datetime import datetime, date
 
 from models.database import Database
 from models.task import Task
+from models.project import Project
 from utils.constants import DEFAULT_BLOCK_COLOR
 
 
@@ -68,6 +69,28 @@ def cmd_list(args, db: Database):
         print(f"{start_str} - {end_str}  {t.name}{proj_str}")
 
 
+def cmd_add_project(args, db: Database):
+    projects = db.get_all_projects()
+    if any(p.name == args.name for p in projects):
+        print(f'エラー: プロジェクト「{args.name}」は既に存在します', file=sys.stderr)
+        sys.exit(1)
+    order = max((p.order for p in projects), default=-1) + 1
+    project = Project(name=args.name, order=order)
+    if args.color:
+        project.color = args.color
+    db.insert_project(project)
+    print(f"プロジェクト追加: {args.name}  ({project.color})")
+
+
+def cmd_list_projects(args, db: Database):
+    projects = db.get_all_projects()
+    if not projects:
+        print("プロジェクトはありません")
+        return
+    for p in projects:
+        print(f"{p.name}  ({p.color})")
+
+
 def main():
     parser = argparse.ArgumentParser(description="KousuKanri CLI")
     sub = parser.add_subparsers(dest="command")
@@ -84,6 +107,14 @@ def main():
     p_list = sub.add_parser("list", help="タスク一覧")
     p_list.add_argument("--date", help="日付 (YYYY-MM-DD, デフォルト: 今日)")
 
+    # add-project
+    p_ap = sub.add_parser("add-project", help="プロジェクトを追加")
+    p_ap.add_argument("name", help="プロジェクト名")
+    p_ap.add_argument("--color", help="色 (例: #FF5722)")
+
+    # list-projects
+    sub.add_parser("list-projects", help="プロジェクト一覧")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -95,6 +126,10 @@ def main():
             cmd_add(args, db)
         elif args.command == "list":
             cmd_list(args, db)
+        elif args.command == "add-project":
+            cmd_add_project(args, db)
+        elif args.command == "list-projects":
+            cmd_list_projects(args, db)
     finally:
         db.close()
 

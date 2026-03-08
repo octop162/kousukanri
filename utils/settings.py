@@ -10,6 +10,8 @@ DEFAULTS = {
     "snap_minutes": 1,
     "default_duration_minutes": 30,
     "theme": "dark",
+    "timeline_start_hour": 7,
+    "timeline_end_hour": 22,
 }
 
 

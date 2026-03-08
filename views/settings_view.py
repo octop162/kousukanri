@@ -32,6 +32,20 @@ class SettingsView(QWidget):
         self._duration_spin.setSuffix(" 分")
         layout.addRow("デフォルトタスク時間:", self._duration_spin)
 
+        self._start_hour_spin = QSpinBox()
+        self._start_hour_spin.setRange(0, 23)
+        self._start_hour_spin.setSuffix(" 時")
+        layout.addRow("タイムライン開始:", self._start_hour_spin)
+
+        self._end_hour_spin = QSpinBox()
+        self._end_hour_spin.setRange(1, 24)
+        self._end_hour_spin.setSuffix(" 時")
+        layout.addRow("タイムライン終了:", self._end_hour_spin)
+
+        self._timeline_restart_label = QLabel("※ タイムライン表示範囲は再起動後に反映されます")
+        self._timeline_restart_label.setStyleSheet("color: #888; font-size: 11px;")
+        layout.addRow(self._timeline_restart_label)
+
         self._theme_combo = QComboBox()
         self._theme_combo.addItem("システムのテーマに合わせる", "system")
         self._theme_combo.addItem("ダーク", "dark")
@@ -51,6 +65,8 @@ class SettingsView(QWidget):
         s = load_settings()
         self._snap_spin.setValue(s["snap_minutes"])
         self._duration_spin.setValue(s["default_duration_minutes"])
+        self._start_hour_spin.setValue(s.get("timeline_start_hour", 0))
+        self._end_hour_spin.setValue(s.get("timeline_end_hour", 24))
         theme = s.get("theme", "dark")
         for i in range(self._theme_combo.count()):
             if self._theme_combo.itemData(i) == theme:
@@ -61,6 +77,8 @@ class SettingsView(QWidget):
         s = {
             "snap_minutes": self._snap_spin.value(),
             "default_duration_minutes": self._duration_spin.value(),
+            "timeline_start_hour": self._start_hour_spin.value(),
+            "timeline_end_hour": self._end_hour_spin.value(),
             "theme": self._theme_combo.currentData(),
         }
         save_settings(s)

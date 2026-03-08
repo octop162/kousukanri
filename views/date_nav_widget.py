@@ -76,6 +76,7 @@ class DateNavWidget(QWidget):
         dlg.setWindowTitle("日付を選択")
         dlg_layout = QVBoxLayout(dlg)
         cal = QCalendarWidget()
+        cal.setMinimumSize(400, 300)
         from PySide6.QtCore import QDate
         qd = QDate(self._current_date.year, self._current_date.month, self._current_date.day)
         cal.setSelectedDate(qd)

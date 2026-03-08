@@ -38,44 +38,40 @@ uv run python main.py
 
 ```bash
 # タスク追加
-KousuKanri-cli.exe add "コードレビュー" 09:00 10:30
-KousuKanri-cli.exe add "定例会" 11:00 12:00 --project ミーティング
+kousu-kanri.exe add "コードレビュー" 09:00 10:30
+kousu-kanri.exe add "定例会" 11:00 12:00 --project ミーティング
 
 # タスク一覧
-KousuKanri-cli.exe list
-KousuKanri-cli.exe list --date 2026-03-07
+kousu-kanri.exe list
+kousu-kanri.exe list --date 2026-03-07
 
 # プロジェクト管理
-KousuKanri-cli.exe add-project "ミーティング" --color "#4CAF50"
-KousuKanri-cli.exe list-projects
+kousu-kanri.exe add-project "ミーティング" --color "#4CAF50"
+kousu-kanri.exe list-projects
 
 # レポート（プロジェクト別集計）
-KousuKanri-cli.exe report
-KousuKanri-cli.exe report --date 2026-03-07
+kousu-kanri.exe report
+kousu-kanri.exe report --date 2026-03-07
 
 # 過去30日レポート
-KousuKanri-cli.exe report-30d
-KousuKanri-cli.exe report-30d --date 2026-03-01
+kousu-kanri.exe report-30d
+kousu-kanri.exe report-30d --date 2026-03-01
 ```
 
 ## ビルド (exe)
 
 [Nuitka](https://nuitka.net/) で Python なしで実行できる exe を生成できる。
 
-### GUI
-
 ```bash
-uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=KousuKanri.exe --assume-yes-for-downloads main.py
+# `dist/main.dist/` に exe と依存 DLL が生成される。
+uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
+# `dist/cli.dist/` に生成される。exe を GUI の `dist/main.dist/` にコピーして一緒に配布できる。
+uv run python -m nuitka --standalone --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=kousu-kanri.exe --assume-yes-for-downloads cli.py
+# CLI の exe と DLL を GUI 側にコピーして1フォルダにまとめる
+copy dist\cli.dist\kousu-kanri.exe dist\main.dist\
+copy dist\cli.dist\*.dll dist\main.dist\
 ```
 
-`dist/main.dist/` に exe と依存 DLL が生成される。
-
-### CLI
-
-```bash
-uv run python -m nuitka --standalone --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=KousuKanri-cli.exe --assume-yes-for-downloads cli.py
-```
-
-`dist/cli.dist/` に生成される。exe を GUI の `dist/main.dist/` にコピーして一緒に配布できる。
+`dist/main.dist/` がそのまま配布フォルダになる。
 
 > `v*` タグを push すると GitHub Actions で自動ビルド&リリースされる。

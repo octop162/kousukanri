@@ -1,5 +1,6 @@
 import sys
 
+from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
 from models.database import Database
@@ -26,6 +27,17 @@ def apply_settings(settings: dict):
 
 def main():
     app = QApplication(sys.argv)
+
+    # Prevent multiple instances — if already running, activate existing window
+    socket = QLocalSocket()
+    socket.connectToServer("kousu-kanri-single-instance")
+    if socket.waitForConnected(500):
+        socket.close()
+        sys.exit(0)
+
+    server = QLocalServer()
+    QLocalServer.removeServer("kousu-kanri-single-instance")
+    server.listen("kousu-kanri-single-instance")
 
     # Load settings and apply theme
     from utils.settings import load_settings
@@ -59,6 +71,16 @@ def main():
     window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view)
     window.set_controller(controller)
     window.show()
+
+    # Bring existing window to front when another instance tries to launch
+    def _on_new_connection():
+        conn = server.nextPendingConnection()
+        if conn:
+            conn.close()
+        window.showNormal()
+        window.activateWindow()
+
+    server.newConnection.connect(_on_new_connection)
 
     controller.load_from_db()
 

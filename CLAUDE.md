@@ -160,15 +160,15 @@ tracker/
 ## 起動方法
 ```
 # GUI
-KousuKanri.exe
+kousu-kanri-gui.exe
 
 # CLI
-KousuKanri-cli.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
-KousuKanri-cli.exe list [--date <YYYY-MM-DD>]
-KousuKanri-cli.exe add-project <name> [--color <#HEX>]
-KousuKanri-cli.exe list-projects
-KousuKanri-cli.exe report [--date <YYYY-MM-DD>]
-KousuKanri-cli.exe report-30d [--date <YYYY-MM-DD>]
+kousu-kanri.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
+kousu-kanri.exe list [--date <YYYY-MM-DD>]
+kousu-kanri.exe add-project <name> [--color <#HEX>]
+kousu-kanri.exe list-projects
+kousu-kanri.exe report [--date <YYYY-MM-DD>]
+kousu-kanri.exe report-30d [--date <YYYY-MM-DD>]
 ```
 
 ### 開発時

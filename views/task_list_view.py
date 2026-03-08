@@ -41,6 +41,11 @@ class TaskListView(QWidget):
         for col in range(2, 6):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
+        # Keep cell background colors visible when selected
+        self._table.setStyleSheet(
+            "QTableWidget::item:selected { background: rgba(38, 79, 120, 100); }"
+        )
+
         self._table.cellClicked.connect(self._on_cell_clicked)
         self._table.doubleClicked.connect(self._on_double_clicked)
         self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)

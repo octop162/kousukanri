@@ -77,6 +77,10 @@ class RoutineView(QWidget):
         for col in range(3, 6):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
+        self._table.setStyleSheet(
+            "QTableWidget::item:selected { background: rgba(38, 79, 120, 100); }"
+        )
+
         self._table.cellClicked.connect(self._on_cell_clicked)
         layout.addWidget(self._table)
 

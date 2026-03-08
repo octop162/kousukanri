@@ -11,22 +11,29 @@ from views.main_window import MainWindow
 from controllers.task_controller import TaskController
 
 
+def apply_settings(settings: dict):
+    """Apply settings to constants."""
+    import utils.constants as C
+    C.SNAP_MINUTES = settings["snap_minutes"]
+
+
 def main():
     app = QApplication(sys.argv)
 
-    # Dark palette
-    from PySide6.QtGui import QPalette, QColor
-    palette = QPalette()
-    palette.setColor(QPalette.ColorRole.Window, QColor("#1E1E1E"))
-    palette.setColor(QPalette.ColorRole.WindowText, QColor("#CCCCCC"))
-    palette.setColor(QPalette.ColorRole.Base, QColor("#252526"))
-    palette.setColor(QPalette.ColorRole.Text, QColor("#CCCCCC"))
-    app.setPalette(palette)
+    # Load settings and apply theme
+    from utils.settings import load_settings
+    from utils.theme import apply_theme, get_theme_colors
+    settings = load_settings()
+    apply_settings(settings)
+    theme_name = settings.get("theme", "dark")
+    apply_theme(app, theme_name)
+    theme_colors = get_theme_colors(theme_name)
 
-    scene = TimelineScene()
+    scene = TimelineScene(theme_colors=theme_colors)
     list_view = TaskListView()
     project_list_view = ProjectListView()
     settings_view = SettingsView()
+    settings_view.settings_changed.connect(apply_settings)
     timer_widget = TimerWidget()
     controller = TaskController(scene)
     controller.set_list_view(list_view)
@@ -35,6 +42,32 @@ def main():
 
     window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget)
     window.show()
+
+    # ── Sample data for testing ──
+    from datetime import datetime, timedelta
+    from models.project import Project
+    from models.task import Task
+
+    now = datetime.now().replace(second=0, microsecond=0)
+
+    proj_dev = Project(name="開発")
+    proj_mtg = Project(name="ミーティング")
+    proj_doc = Project(name="ドキュメント")
+
+    for proj in [proj_dev, proj_mtg, proj_doc]:
+        controller._on_project_created(proj)
+
+    sample_tasks = [
+        Task(name="コードレビュー", start_time=now - timedelta(hours=3), end_time=now - timedelta(hours=2),
+             color=proj_dev.color, project_id=proj_dev.id),
+        Task(name="週次定例", start_time=now - timedelta(hours=2), end_time=now - timedelta(hours=1),
+             color=proj_mtg.color, project_id=proj_mtg.id),
+        Task(name="API設計書作成", start_time=now - timedelta(hours=1), end_time=now,
+             color=proj_doc.color, project_id=proj_doc.id),
+    ]
+    for task in sample_tasks:
+        controller._on_task_created(task)
+        scene.add_task_block(task)
 
     sys.exit(app.exec())
 

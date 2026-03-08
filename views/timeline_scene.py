@@ -16,16 +16,18 @@ class TimelineScene(QGraphicsScene):
     task_changed = Signal(Task)
     task_deleted = Signal(str)  # task id
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, theme_colors: dict | None = None):
         super().__init__(parent)
         self._reference_date = datetime.now()
         self._projects = []
-        self._ruler = TimeRulerItem()
+        self._theme_colors = theme_colors or {}
+        self._ruler = TimeRulerItem(theme_colors=self._theme_colors)
         self.addItem(self._ruler)
 
         scene_w = C.BLOCK_LEFT + C.BLOCK_WIDTH + 20
         self.setSceneRect(0, 0, scene_w, C.TIMELINE_HEIGHT)
-        self.setBackgroundBrush(QBrush(QColor("#1E1E1E")))
+        bg = self._theme_colors.get("timeline_bg", "#1E1E1E")
+        self.setBackgroundBrush(QBrush(QColor(bg)))
 
         # Drag-to-create state
         self._drag_creating = False
@@ -220,7 +222,7 @@ class TimelineScene(QGraphicsScene):
         if gap is not None:
             start, end = gap
             color = C.DEFAULT_BLOCK_COLOR
-            task = Task(name="New Task", start_time=start, end_time=end, color=color)
+            task = Task(name="あたらしいタスク", start_time=start, end_time=end, color=color)
             self.add_task_block(task)
             self.task_created.emit(task)
 
@@ -278,7 +280,7 @@ class TimelineScene(QGraphicsScene):
                         start, end = result
                         color = C.DEFAULT_BLOCK_COLOR
                         task = Task(
-                            name="New Task",
+                            name="あたらしいタスク",
                             start_time=start,
                             end_time=end,
                             color=color,

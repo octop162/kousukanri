@@ -51,6 +51,7 @@ class TaskController(QObject):
         timer_widget.timer_stopped.connect(self._on_timer_stopped)
         timer_widget.timer_name_changed.connect(self._on_timer_name_changed)
         timer_widget.timer_project_changed.connect(self._on_timer_project_changed)
+        timer_widget.task_add_requested.connect(self._on_task_add_requested)
 
     # ── Timer handlers ─────────────────────────────────────────
 
@@ -70,6 +71,8 @@ class TaskController(QObject):
         self._scene.add_task_block(task)
         if self._list_view is not None:
             self._list_view.add_task(task)
+        if self._timer_widget is not None:
+            self._timer_widget.add_task_to_history(task)
 
         self._running_task_id = task.id
         self._tick_timer.start()
@@ -107,7 +110,7 @@ class TaskController(QObject):
         task = self._tasks.get(self._running_task_id)
         if task is None:
             return
-        task.name = name or "New Task"
+        task.name = name or "あたらしいタスク"
         self._scene.update_task_block(task)
         if self._list_view is not None:
             self._list_view.update_task(task)
@@ -126,6 +129,22 @@ class TaskController(QObject):
         if self._list_view is not None:
             self._list_view.update_task(task)
 
+    # ── signal handler (from timer add button) ─────────────────
+
+    def _on_task_add_requested(self, task: Task):
+        result = self._scene.resolve_overlap(task.start_time, task.end_time)
+        if result is None:
+            return
+        task.start_time, task.end_time = result
+        self._tasks[task.id] = task
+        self._scene.add_task_block(task)
+        if self._db is not None:
+            self._db.insert_task(task)
+        if self._list_view is not None:
+            self._list_view.add_task(task)
+        if self._timer_widget is not None:
+            self._timer_widget.add_task_to_history(task)
+
     # ── signal handlers (from timeline) ────────────────────────
 
     def _on_task_created(self, task: Task):
@@ -134,6 +153,8 @@ class TaskController(QObject):
             self._db.insert_task(task)
         if self._list_view is not None:
             self._list_view.add_task(task)
+        if self._timer_widget is not None:
+            self._timer_widget.add_task_to_history(task)
 
     def _on_task_changed(self, task: Task):
         self._tasks[task.id] = task

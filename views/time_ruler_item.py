@@ -8,9 +8,10 @@ from PySide6.QtCore import QRectF, Qt
 class TimeRulerItem(QGraphicsItem):
     """Draws time labels on the left and horizontal grid lines."""
 
-    def __init__(self):
+    def __init__(self, theme_colors: dict | None = None):
         super().__init__()
         self._font = QFont("Segoe UI", 9)
+        self._theme = theme_colors or {}
         self.setZValue(-10)
 
     def boundingRect(self) -> QRectF:
@@ -18,9 +19,9 @@ class TimeRulerItem(QGraphicsItem):
 
     def paint(self, painter: QPainter, option, widget=None):
         painter.setFont(self._font)
-        pen_major = QPen(QColor("#555555"), 1)
-        pen_minor = QPen(QColor("#333333"), 1)
-        pen_text = QPen(QColor("#CCCCCC"))
+        pen_major = QPen(QColor(self._theme.get("ruler_major", "#555555")), 1)
+        pen_minor = QPen(QColor(self._theme.get("ruler_minor", "#333333")), 1)
+        pen_text = QPen(QColor(self._theme.get("ruler_text", "#CCCCCC")))
 
         total_minutes = (C.TIMELINE_END_HOUR - C.TIMELINE_START_HOUR) * 60
         scene_width = C.BLOCK_LEFT + C.BLOCK_WIDTH + 20

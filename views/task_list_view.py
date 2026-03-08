@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (
     QHeaderView, QAbstractItemView, QMenu,
 )
 from PySide6.QtCore import Signal, Qt
+from PySide6.QtGui import QColor, QBrush
 
 from models.task import Task
 from models.project import Project
@@ -71,12 +72,16 @@ class TaskListView(QWidget):
         from views.task_edit_dialog import TaskEditDialog
 
         task = self._tasks[row]
+        history = [(t.name, t.project_id) for t in self._tasks]
         dlg = TaskEditDialog(
             task.name, task.project_id,
             task.start_time, task.end_time,
-            self._projects, parent=self,
+            self._projects, task_history=history, allow_delete=True, parent=self,
         )
         if dlg.exec() != TaskEditDialog.DialogCode.Accepted:
+            return
+        if dlg.deleted:
+            self.task_delete_requested.emit(task.id)
             return
         result = dlg.get_result()
         if result is None:
@@ -108,14 +113,16 @@ class TaskListView(QWidget):
 
     def add_task(self, task: Task):
         self._tasks.append(task)
-        self._append_row(task)
+        self._rebuild_table()
 
     def update_task(self, task: Task):
         for i, t in enumerate(self._tasks):
             if t.id == task.id:
                 self._tasks[i] = task
-                self._update_row(i, task)
-                return
+                break
+        else:
+            return
+        self._rebuild_table()
 
     def remove_task(self, task_id: str):
         for i, t in enumerate(self._tasks):
@@ -126,10 +133,13 @@ class TaskListView(QWidget):
 
     # ── Table helpers ──
 
-    def _append_row(self, task: Task):
-        row = self._table.rowCount()
-        self._table.insertRow(row)
-        self._update_row(row, task)
+    def _rebuild_table(self):
+        self._tasks.sort(key=lambda t: t.start_time)
+        self._table.setRowCount(0)
+        for task in self._tasks:
+            row = self._table.rowCount()
+            self._table.insertRow(row)
+            self._update_row(row, task)
 
     def _update_row(self, row: int, task: Task):
         self._table.setItem(row, 0, QTableWidgetItem(task.name))
@@ -150,4 +160,9 @@ class TaskListView(QWidget):
 
         project = self._find_project(task.project_id)
         project_name = project.name if project else ""
-        self._table.setItem(row, 4, QTableWidgetItem(project_name))
+        proj_item = QTableWidgetItem(project_name)
+        if project:
+            bg = QColor(project.color)
+            bg.setAlpha(80)
+            proj_item.setBackground(QBrush(bg))
+        self._table.setItem(row, 4, proj_item)

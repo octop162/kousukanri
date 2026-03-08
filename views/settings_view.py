@@ -1,29 +1,68 @@
-from PySide6.QtWidgets import QWidget, QFormLayout, QSpinBox, QComboBox, QLabel
+from PySide6.QtWidgets import (
+    QWidget, QFormLayout, QSpinBox, QLabel, QPushButton, QMessageBox, QComboBox,
+)
+from PySide6.QtCore import Signal
+
+from utils.settings import load_settings, save_settings
 
 
 class SettingsView(QWidget):
+    settings_changed = Signal(dict)  # emitted with full settings dict
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._init_ui()
+        self._load()
 
+    def _init_ui(self):
         layout = QFormLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
 
-        header = QLabel("設定（ダミー）")
+        header = QLabel("設定")
         header.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 8px;")
         layout.addRow(header)
 
-        self.snap_interval = QSpinBox()
-        self.snap_interval.setRange(1, 60)
-        self.snap_interval.setValue(5)
-        self.snap_interval.setSuffix(" 分")
-        layout.addRow("スナップ間隔:", self.snap_interval)
+        self._snap_spin = QSpinBox()
+        self._snap_spin.setRange(1, 60)
+        self._snap_spin.setSuffix(" 分")
+        layout.addRow("スナップ間隔:", self._snap_spin)
 
-        self.default_duration = QSpinBox()
-        self.default_duration.setRange(5, 480)
-        self.default_duration.setValue(30)
-        self.default_duration.setSuffix(" 分")
-        layout.addRow("デフォルトタスク時間:", self.default_duration)
+        self._duration_spin = QSpinBox()
+        self._duration_spin.setRange(1, 480)
+        self._duration_spin.setSuffix(" 分")
+        layout.addRow("デフォルトタスク時間:", self._duration_spin)
 
-        self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Dark", "Light"])
-        layout.addRow("テーマ:", self.theme_combo)
+        self._theme_combo = QComboBox()
+        self._theme_combo.addItem("システムのテーマに合わせる", "system")
+        self._theme_combo.addItem("ダーク", "dark")
+        self._theme_combo.addItem("ライト", "light")
+        self._theme_combo.addItem("パステル", "pastel")
+        layout.addRow("テーマ:", self._theme_combo)
+
+        self._restart_label = QLabel("※ テーマは再起動後に反映されます")
+        self._restart_label.setStyleSheet("color: #888; font-size: 11px;")
+        layout.addRow(self._restart_label)
+
+        save_btn = QPushButton("保存")
+        save_btn.clicked.connect(self._on_save)
+        layout.addRow(save_btn)
+
+    def _load(self):
+        s = load_settings()
+        self._snap_spin.setValue(s["snap_minutes"])
+        self._duration_spin.setValue(s["default_duration_minutes"])
+        theme = s.get("theme", "dark")
+        for i in range(self._theme_combo.count()):
+            if self._theme_combo.itemData(i) == theme:
+                self._theme_combo.setCurrentIndex(i)
+                break
+
+    def _on_save(self):
+        s = {
+            "snap_minutes": self._snap_spin.value(),
+            "default_duration_minutes": self._duration_spin.value(),
+            "theme": self._theme_combo.currentData(),
+        }
+        save_settings(s)
+        self.settings_changed.emit(s)
+        QMessageBox.information(self, "設定", "保存しました。")

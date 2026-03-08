@@ -80,6 +80,14 @@ class TaskBlockItem(QGraphicsRectItem):
     def hoverLeaveEvent(self, event):
         self.unsetCursor()
 
+    # ── double-click to edit ──────────────────────────────────
+
+    def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._open_edit_dialog()
+        else:
+            super().mouseDoubleClickEvent(event)
+
     # ── mouse press / move / release ──────────────────────────
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
@@ -194,12 +202,22 @@ class TaskBlockItem(QGraphicsRectItem):
         from views.task_edit_dialog import TaskEditDialog
 
         projects = self._scene._projects if self._scene else []
+        # Build history from existing blocks
+        history = []
+        if self._scene:
+            for block in self._scene._get_blocks():
+                history.append((block.task.name, block.task.project_id))
         dlg = TaskEditDialog(
             self.task.name, self.task.project_id,
             self.task.start_time, self.task.end_time,
-            projects,
+            projects, task_history=history, allow_delete=True,
         )
         if dlg.exec() != TaskEditDialog.DialogCode.Accepted:
+            return
+        if dlg.deleted:
+            if self._scene is not None:
+                self._scene.task_deleted.emit(self.task.id)
+                self._scene.removeItem(self)
             return
         result = dlg.get_result()
         if result is None:

@@ -114,6 +114,7 @@ class MainWindow(QMainWindow):
         tray_menu.addAction(quit_action)
         self._tray.setContextMenu(tray_menu)
         self._tray.activated.connect(self._on_tray_activated)
+        self._tray.show()
 
         # Idle reminder
         self._controller = None
@@ -141,7 +142,6 @@ class MainWindow(QMainWindow):
             self._idle_timer.stop()
 
     def _on_test_notify(self):
-        self._tray.show()
         self._tray.showMessage(
             "KousuKanri",
             "これはテスト通知です。",
@@ -151,7 +151,6 @@ class MainWindow(QMainWindow):
 
     def _check_idle(self):
         if self._idle_notify and self._controller and self._controller.is_idle():
-            self._tray.show()
             self._tray.showMessage(
                 "KousuKanri",
                 "タスクが記録されていません。計測を始めましょう！",
@@ -167,19 +166,16 @@ class MainWindow(QMainWindow):
         if event.type() == event.Type.WindowStateChange:
             if self.isMinimized():
                 self.hide()
-                self._tray.show()
 
     def closeEvent(self, event):
         event.ignore()
         self.hide()
-        self._tray.show()
 
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self._restore_from_tray()
 
     def _restore_from_tray(self):
-        self._tray.hide()
         self.showNormal()
         self.activateWindow()
 

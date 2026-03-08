@@ -160,6 +160,10 @@ class TaskController(QObject):
     # ── Timer handlers ─────────────────────────────────────────
 
     def _on_timer_started(self, name: str, project_id: str):
+        today = date.today()
+        if self._current_date != today:
+            self.change_date(today)
+
         now = datetime.now().replace(microsecond=0)
         end = now  # will grow each tick
 

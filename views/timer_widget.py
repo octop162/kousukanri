@@ -178,6 +178,15 @@ class TimerWidget(QWidget):
         )
         self.task_add_requested.emit(task)
 
+    # ── External start ──
+
+    def set_and_start(self, name: str, project_id: str):
+        """Fill name/project and start the timer (called externally)."""
+        self._name_edit.setText(name)
+        self._select_project(project_id if project_id else None)
+        if not self._running:
+            self._start()
+
     # ── Toggle ──
 
     def _on_toggle(self):

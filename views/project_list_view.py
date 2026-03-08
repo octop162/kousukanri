@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
-    QColorDialog,
+    QMessageBox,
 )
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtCore import Signal
@@ -67,9 +67,10 @@ class ProjectListView(QWidget):
         )
 
     def _on_pick_add_color(self):
-        color = QColorDialog.getColor(QColor(self._selected_color), self)
-        if color.isValid():
-            self._selected_color = color.name()
+        from views.color_picker_dialog import ColorPickerDialog
+        dlg = ColorPickerDialog(self._selected_color, self)
+        if dlg.exec() == ColorPickerDialog.DialogCode.Accepted:
+            self._selected_color = dlg.selected_color()
             self._update_color_button(self._selected_color)
 
     def _on_add_clicked(self):
@@ -87,14 +88,20 @@ class ProjectListView(QWidget):
 
         if col == 1:
             # Color swatch clicked → pick new color
-            color = QColorDialog.getColor(QColor(project.color), self)
-            if color.isValid():
-                project.color = color.name()
+            from views.color_picker_dialog import ColorPickerDialog
+            dlg = ColorPickerDialog(project.color, self)
+            if dlg.exec() == ColorPickerDialog.DialogCode.Accepted:
+                project.color = dlg.selected_color()
                 self._update_row(row, project)
                 self.project_changed.emit(project)
         elif col == 2:
             # Delete button clicked
-            self.project_deleted.emit(project.id)
+            reply = QMessageBox.question(
+                self, "確認", f"プロジェクト「{project.name}」を削除しますか？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.project_deleted.emit(project.id)
 
     # ── Public methods (called by controller) ──
 

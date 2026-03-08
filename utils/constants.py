@@ -25,10 +25,10 @@ RULER_TICK_MINOR = 15   # minutes between minor ticks (mutable)
 BLOCK_LEFT = RULER_WIDTH + 8
 
 # Colors
-DEFAULT_BLOCK_COLOR = "#4A90D9"  # プロジェクトなしタスクのデフォルト色
+DEFAULT_BLOCK_COLOR = "#64B5F6"  # プロジェクトなしタスクのデフォルト色
 DEFAULT_BLOCK_COLORS = [
-    "#4A90D9", "#E74C3C", "#2ECC71", "#F39C12",
-    "#9B59B6", "#1ABC9C", "#E67E22", "#3498DB",
+    "#64B5F6", "#E57373", "#81C784", "#FFD54F",
+    "#BA68C8", "#4DB6AC", "#FFB74D", "#7986CB",
 ]
 
 

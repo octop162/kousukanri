@@ -15,6 +15,7 @@ class TaskListView(QWidget):
 
     task_edited = Signal(Task)
     task_delete_requested = Signal(str)  # task id
+    task_start_requested = Signal(str, str)  # (name, project_id)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -26,9 +27,9 @@ class TaskListView(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self._table = QTableWidget(0, 5)
+        self._table = QTableWidget(0, 6)
         self._table.setHorizontalHeaderLabels(
-            ["タスク名", "開始", "終了", "所要時間", "プロジェクト"]
+            ["タスク名", "開始", "終了", "所要時間", "プロジェクト", ""]
         )
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -36,13 +37,21 @@ class TaskListView(QWidget):
 
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for col in range(1, 5):
+        for col in range(1, 6):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
+        self._table.cellClicked.connect(self._on_cell_clicked)
         self._table.doubleClicked.connect(self._on_double_clicked)
         self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_context_menu)
         layout.addWidget(self._table)
+
+    # ── Cell click (start button) ──
+
+    def _on_cell_clicked(self, row: int, col: int):
+        if col == 5 and 0 <= row < len(self._tasks):
+            task = self._tasks[row]
+            self.task_start_requested.emit(task.name, task.project_id or "")
 
     # ── Context menu (right-click) ──
 
@@ -166,3 +175,7 @@ class TaskListView(QWidget):
             bg.setAlpha(80)
             proj_item.setBackground(QBrush(bg))
         self._table.setItem(row, 4, proj_item)
+
+        start_item = QTableWidgetItem("▶")
+        start_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._table.setItem(row, 5, start_item)

@@ -36,6 +36,7 @@ class TaskController(QObject):
         self._list_view = list_view
         list_view.task_edited.connect(self._on_task_edited)
         list_view.task_delete_requested.connect(self._on_list_delete_requested)
+        list_view.task_start_requested.connect(self._on_list_start_requested)
 
     def set_project_list_view(self, project_list_view):
         """Connect a ProjectListView for project CRUD."""
@@ -197,6 +198,17 @@ class TaskController(QObject):
     def _on_task_edited(self, task: Task):
         self._tasks[task.id] = task
         self._scene.update_task_block(task)
+
+    def _on_list_start_requested(self, name: str, project_id: str):
+        """Start timer with given name and project from list view."""
+        if self._timer_widget is None:
+            return
+        # If already running, stop first
+        if self._running_task_id is not None:
+            self._timer_widget.force_stop()
+            self._on_timer_stopped()
+        # Fill timer widget and start
+        self._timer_widget.set_and_start(name, project_id)
 
     def _on_list_delete_requested(self, task_id: str):
         """Delete a task initiated from the list view."""

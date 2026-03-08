@@ -61,8 +61,8 @@ class TaskBlockItem(QGraphicsRectItem):
         painter.setPen(self.pen())
         painter.drawRoundedRect(r, BLOCK_CORNER_RADIUS, BLOCK_CORNER_RADIUS)
 
-        # Draw task name
-        painter.setPen(QPen(QColor("white")))
+        # Draw task name — use darkened block color for text
+        painter.setPen(QPen(QColor(self.task.color).darker(250)))
         painter.setFont(self._font)
         text_rect = r.adjusted(8, 4, -4, -4)
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft, self.task.name)

@@ -51,6 +51,7 @@ kousu-kanri.exe list-projects
 
 # レポート（プロジェクト別集計）
 kousu-kanri.exe report
+kousu-kanri.exe report --yesterday
 kousu-kanri.exe report --date 2026-03-07
 
 # 過去30日レポート

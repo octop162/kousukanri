@@ -132,7 +132,12 @@ def _print_report_table(totals):
 
 
 def cmd_report(args, db: Database):
-    target_date = args.date if args.date else date.today().isoformat()
+    if args.yesterday:
+        target_date = (date.today() - timedelta(days=1)).isoformat()
+    elif args.date:
+        target_date = args.date
+    else:
+        target_date = date.today().isoformat()
     tasks = db.get_tasks_for_date(target_date)
 
     print(f"{target_date} レポート")
@@ -212,6 +217,7 @@ def main():
     # report
     p_report = sub.add_parser("report", help="プロジェクト別レポート")
     p_report.add_argument("--date", help="日付 (YYYY-MM-DD, デフォルト: 今日)")
+    p_report.add_argument("--yesterday", action="store_true", help="昨日のレポート")
 
     # report-30d
     p_r30 = sub.add_parser("report-30d", help="過去30日のプロジェクト別レポート")

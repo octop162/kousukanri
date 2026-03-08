@@ -167,7 +167,7 @@ kousu-kanri.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>
 kousu-kanri.exe list [--date <YYYY-MM-DD>]
 kousu-kanri.exe add-project <name> [--color <#HEX>]
 kousu-kanri.exe list-projects
-kousu-kanri.exe report [--date <YYYY-MM-DD>]
+kousu-kanri.exe report [--date <YYYY-MM-DD>] [--yesterday]
 kousu-kanri.exe report-30d [--date <YYYY-MM-DD>]
 ```
 

@@ -9,6 +9,7 @@ from views.settings_view import SettingsView
 from views.timer_widget import TimerWidget
 from views.date_nav_widget import DateNavWidget
 from views.routine_view import RoutineView
+from views.export_view import ExportView
 from views.main_window import MainWindow
 from controllers.task_controller import TaskController
 
@@ -39,17 +40,19 @@ def main():
     project_list_view = ProjectListView()
     settings_view = SettingsView()
     settings_view.settings_changed.connect(apply_settings)
-    timer_widget = TimerWidget()
+    timer_widget = TimerWidget(theme_colors=theme_colors)
     date_nav_widget = DateNavWidget()
     routine_view = RoutineView()
+    export_view = ExportView()
     controller = TaskController(scene)
     controller.set_list_view(list_view)
     controller.set_project_list_view(project_list_view)
     controller.set_timer_widget(timer_widget)
     controller.set_date_nav_widget(date_nav_widget)
     controller.set_routine_view(routine_view)
+    controller.set_export_view(export_view)
 
-    window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view)
+    window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view)
     window.show()
 
     # ── Sample data for testing ──

@@ -28,6 +28,7 @@ tracker/
 │   ├── timer_widget.py       # Toggl風タイマーバー (Phase 1.8)
 │   ├── date_nav_widget.py    # 日付ナビゲーション (◀/今日/▶ + カレンダー)
 │   ├── routine_view.py       # 定期タスク管理 (ルーティン登録・ワンクリック追加)
+│   ├── export_view.py        # 出力タブ (テキストエクスポート・クリップボードコピー)
 │   └── settings_view.py      # 設定画面 (スナップ・表示範囲・テーマ)
 ├── controllers/
 │   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict)
@@ -116,6 +117,10 @@ tracker/
 - [x] タイムライン表示範囲を設定で変更可能 (デフォルト 7:00〜22:00)
 - [x] テーマ追加: ライト(旧パステル)・スカイ・ハッカー・Monokai・Solarized Light/Dark
 - [x] プロジェクトプルダウンに色付き■アイコン表示
+
+### Phase 1.9.1: テーマ色のタイマーボタン対応（動作確認済み）
+- [x] utils/theme.py に timer_start / timer_stop / timer_add 色キー追加
+- [x] views/timer_widget.py がテーマ色でボタン背景を描画
 
 ### Phase 1.10: 定期タスク（ルーティン）機能（動作確認済み）
 - [x] models/routine.py (Routine dataclass)

@@ -23,6 +23,7 @@ class TaskController(QObject):
         self._timer_widget = None
         self._date_nav_widget = None
         self._routine_view = None
+        self._export_view = None
 
         # Timer state
         self._running_task_id: str | None = None
@@ -76,6 +77,21 @@ class TaskController(QObject):
         self._routine_view = routine_view
         routine_view.task_add_requested.connect(self._on_task_add_requested)
 
+    def set_export_view(self, export_view):
+        """Connect an ExportView for text export."""
+        self._export_view = export_view
+        self._refresh_export_view()
+
+    def _refresh_export_view(self):
+        """Push current tasks and projects to the export view."""
+        if self._export_view is None:
+            return
+        self._export_view.update_tasks(
+            list(self._tasks.values()),
+            self._sorted_projects(),
+            self._current_date,
+        )
+
     # ── Date navigation ────────────────────────────────────────
 
     def _on_date_requested(self, new_date):
@@ -116,6 +132,8 @@ class TaskController(QObject):
         # Update routine view display date
         if self._routine_view is not None:
             self._routine_view.set_display_date(self._current_date)
+
+        self._refresh_export_view()
 
     # ── Timer handlers ─────────────────────────────────────────
 
@@ -224,6 +242,7 @@ class TaskController(QObject):
             self._list_view.add_task(task)
         if self._timer_widget is not None:
             self._timer_widget.add_task_to_history(task)
+        self._refresh_export_view()
 
     # ── signal handlers (from timeline) ────────────────────────
 
@@ -235,6 +254,7 @@ class TaskController(QObject):
             self._list_view.add_task(task)
         if self._timer_widget is not None:
             self._timer_widget.add_task_to_history(task)
+        self._refresh_export_view()
 
     def _on_task_changed(self, task: Task):
         self._tasks[task.id] = task
@@ -242,6 +262,7 @@ class TaskController(QObject):
             self._db.update_task(task)
         if self._list_view is not None:
             self._list_view.update_task(task)
+        self._refresh_export_view()
 
     def _on_task_deleted(self, task_id: str):
         # Guard: if the running task is deleted, stop the timer
@@ -257,6 +278,7 @@ class TaskController(QObject):
             self._db.delete_task(task_id)
         if self._list_view is not None:
             self._list_view.remove_task(task_id)
+        self._refresh_export_view()
 
     # ── signal handler (from list view) ────────────────────────
 

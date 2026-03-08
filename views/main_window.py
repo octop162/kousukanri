@@ -10,6 +10,7 @@ from views.settings_view import SettingsView
 from views.timer_widget import TimerWidget
 from views.date_nav_widget import DateNavWidget
 from views.routine_view import RoutineView
+from views.export_view import ExportView
 
 
 class MainWindow(QMainWindow):
@@ -19,6 +20,7 @@ class MainWindow(QMainWindow):
                  timer_widget: TimerWidget,
                  date_nav_widget: DateNavWidget = None,
                  routine_view: RoutineView = None,
+                 export_view: ExportView = None,
                  parent=None):
         super().__init__(parent)
         self.setWindowTitle("Time Tracker PoC")
@@ -68,13 +70,23 @@ class MainWindow(QMainWindow):
 
         right_layout.addWidget(timer_widget)
 
+        # Upper tabs: タスク
         tab_widget = QTabWidget()
         tab_widget.addTab(list_view, "タスク")
-        tab_widget.addTab(project_list_view, "プロジェクト")
+
+        # Lower tabs: 定期 / プロジェクト / 設定
+        lower_tab_widget = QTabWidget()
         if routine_view is not None:
-            tab_widget.addTab(routine_view, "定期")
-        tab_widget.addTab(settings_view, "設定")
-        right_layout.addWidget(tab_widget)
+            lower_tab_widget.addTab(routine_view, "定期")
+        lower_tab_widget.addTab(project_list_view, "プロジェクト")
+        if export_view is not None:
+            lower_tab_widget.addTab(export_view, "出力")
+        lower_tab_widget.addTab(settings_view, "設定")
+
+        right_splitter = QSplitter(Qt.Orientation.Vertical)
+        right_splitter.addWidget(tab_widget)
+        right_splitter.addWidget(lower_tab_widget)
+        right_layout.addWidget(right_splitter)
 
         splitter.addWidget(right_panel)
         splitter.setSizes([500, 700])

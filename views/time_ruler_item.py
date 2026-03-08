@@ -44,3 +44,8 @@ class TimeRulerItem(QGraphicsItem):
             else:
                 painter.setPen(pen_minor)
                 painter.drawLine(C.RULER_WIDTH, int(y), int(scene_width), int(y))
+
+    def set_theme_colors(self, colors: dict):
+        self._theme = colors
+        self.prepareGeometryChange()
+        self.update()

@@ -149,6 +149,14 @@ class TimelineScene(QGraphicsScene):
         self.addItem(block)
         return block
 
+    def set_theme_colors(self, colors: dict):
+        """Update theme colors at runtime (background + ruler)."""
+        self._theme_colors = colors
+        bg = colors.get("timeline_bg", "#1E1E1E")
+        self.setBackgroundBrush(QBrush(QColor(bg)))
+        self._ruler.set_theme_colors(colors)
+        self.update()
+
     def set_projects(self, projects):
         """Update the project list (used by context menus)."""
         self._projects = list(projects)

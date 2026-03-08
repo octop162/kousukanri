@@ -20,12 +20,13 @@ class TimerWidget(QWidget):
     timer_project_changed = Signal(str)    # project_id or ""
     task_add_requested = Signal(Task)      # manually created task
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, theme_colors: dict | None = None):
         super().__init__(parent)
         self._running = False
         self._start_time: datetime | None = None
         self._display_date: date = date.today()
         self._projects: list[Project] = []
+        self._theme = theme_colors or {}
         # History: list of (task_name, project_id) unique pairs, most recent last
         self._history: list[tuple[str, str | None]] = []
         self._init_ui()
@@ -70,21 +71,22 @@ class TimerWidget(QWidget):
 
         self._add_btn = QPushButton("+")
         self._add_btn.setFixedWidth(40)
-        self._add_btn.setStyleSheet(
-            "QPushButton { background-color: #3498DB; color: white; font-size: 16px; "
-            "border-radius: 4px; padding: 4px; }"
-        )
+        self._add_btn.setStyleSheet(self._btn_style(self._theme.get("timer_add", "#3498DB")))
         self._add_btn.clicked.connect(self._on_add)
         layout.addWidget(self._add_btn)
 
         self._toggle_btn = QPushButton("▶")
         self._toggle_btn.setFixedWidth(40)
-        self._toggle_btn.setStyleSheet(
-            "QPushButton { background-color: #2ECC71; color: white; font-size: 16px; "
-            "border-radius: 4px; padding: 4px; }"
-        )
+        self._toggle_btn.setStyleSheet(self._btn_style(self._theme.get("timer_start", "#2ECC71")))
         self._toggle_btn.clicked.connect(self._on_toggle)
         layout.addWidget(self._toggle_btn)
+
+    @staticmethod
+    def _btn_style(bg: str) -> str:
+        return (
+            f"QPushButton {{ background-color: {bg}; color: white; font-size: 16px; "
+            f"border-radius: 4px; padding: 4px; }}"
+        )
 
     @staticmethod
     def _make_color_icon(color: str, size: int = 12) -> QIcon:
@@ -216,10 +218,7 @@ class TimerWidget(QWidget):
         self.timer_started.emit(name, project_id)
         self._tick_timer.start()
         self._toggle_btn.setText("■")
-        self._toggle_btn.setStyleSheet(
-            "QPushButton { background-color: #E74C3C; color: white; font-size: 16px; "
-            "border-radius: 4px; padding: 4px; }"
-        )
+        self._toggle_btn.setStyleSheet(self._btn_style(self._theme.get("timer_stop", "#E74C3C")))
 
     def _stop(self):
         self._running = False
@@ -231,10 +230,7 @@ class TimerWidget(QWidget):
         self._time_label.setText("00:00:00")
         self._name_edit.clear()
         self._toggle_btn.setText("▶")
-        self._toggle_btn.setStyleSheet(
-            "QPushButton { background-color: #2ECC71; color: white; font-size: 16px; "
-            "border-radius: 4px; padding: 4px; }"
-        )
+        self._toggle_btn.setStyleSheet(self._btn_style(self._theme.get("timer_start", "#2ECC71")))
         self._start_time = None
 
     def force_stop(self):

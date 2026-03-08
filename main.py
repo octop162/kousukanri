@@ -70,7 +70,10 @@ def main():
 
     window = MainWindow(scene, list_view, project_list_view, settings_view, timer_widget, date_nav_widget, routine_view, export_view)
     window.set_controller(controller)
-    window.show()
+    if "--minimized" in sys.argv:
+        window.hide()  # トレイのみ表示、ウィンドウは非表示
+    else:
+        window.show()
 
     # Bring existing window to front when another instance tries to launch
     def _on_new_connection():

@@ -72,3 +72,13 @@ copy dist\cli.dist\*.dll dist\main.dist\
 `dist/main.dist/` がそのまま配布フォルダになる。
 
 > `v*` タグを push すると GitHub Actions で自動ビルド&リリースされる。
+
+## アンインストール
+
+アプリを削除する前に、設定画面の「Windows 起動時に自動起動する」のチェックを外して保存してください。
+
+チェックを外さずに削除した場合は、以下のコマンドでレジストリを手動削除できます。
+
+```bat
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v KousuKanri /f
+```

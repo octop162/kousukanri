@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal
 
 from utils.settings import load_settings, save_settings
+from utils.startup import is_startup_enabled, set_startup
 
 
 class SettingsView(QWidget):
@@ -66,6 +67,9 @@ class SettingsView(QWidget):
         self._idle_notify_check = QCheckBox("未計測時に通知する")
         layout.addRow(self._idle_notify_check)
 
+        self._startup_check = QCheckBox("Windows 起動時に自動起動する")
+        layout.addRow(self._startup_check)
+
         self._test_notify_btn = QPushButton("テスト通知")
         self._test_notify_btn.clicked.connect(self._on_test_notify)
         layout.addRow(self._test_notify_btn)
@@ -86,6 +90,7 @@ class SettingsView(QWidget):
                 self._theme_combo.setCurrentIndex(i)
                 break
         self._idle_notify_check.setChecked(s.get("idle_notify", True))
+        self._startup_check.setChecked(is_startup_enabled())
 
     def _on_test_notify(self):
         self.test_notify_requested.emit()
@@ -100,5 +105,6 @@ class SettingsView(QWidget):
             "idle_notify": self._idle_notify_check.isChecked(),
         }
         save_settings(s)
+        set_startup(self._startup_check.isChecked())
         self.settings_changed.emit(s)
         QMessageBox.information(self, "設定", "保存しました。")

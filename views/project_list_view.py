@@ -3,18 +3,53 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QMessageBox,
 )
-from PySide6.QtGui import QColor, QBrush
-from PySide6.QtCore import Signal
+from PySide6.QtGui import QColor, QBrush, QDropEvent
+from PySide6.QtCore import Signal, Qt
 
 from models.project import Project
 
 
+class _ReorderTableWidget(QTableWidget):
+    """QTableWidget subclass that handles row reorder via drag-and-drop manually."""
+
+    row_dropped = Signal(int, int)  # (source_row, dest_row)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setDropIndicatorShown(True)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self._drag_source_row: int | None = None
+
+    def startDrag(self, supportedActions):
+        self._drag_source_row = self.currentRow()
+        super().startDrag(supportedActions)
+
+    def dropEvent(self, event: QDropEvent):
+        # Determine destination row from drop position
+        dest_row = self.indexAt(event.position().toPoint()).row()
+        src_row = self._drag_source_row
+
+        if src_row is None or dest_row < 0 or src_row == dest_row:
+            event.ignore()
+            return
+
+        # Don't let QTableWidget handle it (it corrupts rows)
+        event.setDropAction(Qt.DropAction.IgnoreAction)
+        event.accept()
+
+        self.row_dropped.emit(src_row, dest_row)
+
+
 class ProjectListView(QWidget):
-    """Project list with add form and color editing."""
+    """Project list with add form, color editing, and drag-and-drop reordering."""
 
     project_created = Signal(Project)
     project_changed = Signal(Project)
     project_deleted = Signal(str)
+    project_order_changed = Signal(list)  # list[Project] in new order
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -47,10 +82,11 @@ class ProjectListView(QWidget):
         layout.addLayout(form)
 
         # ── Table ──
-        self._table = QTableWidget(0, 3)
+        self._table = _ReorderTableWidget(0, 3)
         self._table.setHorizontalHeaderLabels(["プロジェクト名", "色", ""])
         self._table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._table.verticalHeader().setVisible(False)
 
         header = self._table.horizontalHeader()
@@ -59,6 +95,7 @@ class ProjectListView(QWidget):
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
         self._table.cellClicked.connect(self._on_cell_clicked)
+        self._table.row_dropped.connect(self._on_row_dropped)
         layout.addWidget(self._table)
 
     def _update_color_button(self, color: str):
@@ -77,7 +114,8 @@ class ProjectListView(QWidget):
         name = self._name_edit.text().strip()
         if not name:
             return
-        project = Project(name=name, color=self._selected_color)
+        order = len(self._projects)
+        project = Project(name=name, color=self._selected_color, order=order)
         self._name_edit.clear()
         self.project_created.emit(project)
 
@@ -103,6 +141,22 @@ class ProjectListView(QWidget):
             if reply == QMessageBox.StandardButton.Yes:
                 self.project_deleted.emit(project.id)
 
+    def _on_row_dropped(self, src: int, dest: int):
+        """Move project from src to dest in the list and rebuild table."""
+        if src < 0 or src >= len(self._projects):
+            return
+        if dest < 0 or dest >= len(self._projects):
+            return
+
+        project = self._projects.pop(src)
+        self._projects.insert(dest, project)
+
+        for i, p in enumerate(self._projects):
+            p.order = i
+
+        self._rebuild_table()
+        self.project_order_changed.emit(list(self._projects))
+
     # ── Public methods (called by controller) ──
 
     def add_project(self, project: Project):
@@ -121,9 +175,17 @@ class ProjectListView(QWidget):
             if p.id == project_id:
                 self._projects.pop(i)
                 self._table.removeRow(i)
+                # Re-number remaining
+                for j, pp in enumerate(self._projects):
+                    pp.order = j
                 return
 
     # ── Table helpers ──
+
+    def _rebuild_table(self):
+        self._table.setRowCount(0)
+        for project in self._projects:
+            self._append_row(project)
 
     def _append_row(self, project: Project):
         row = self._table.rowCount()

@@ -16,19 +16,23 @@ tracker/
 │   ├── project.py             # Project dataclass (id, name, color)
 │   └── database.py            # SQLite DAL (Phase 2 - 未実装)
 ├── views/
-│   ├── main_window.py         # QMainWindow + QSplitter (900x700)
+│   ├── main_window.py         # QMainWindow + QSplitter (1200x1000)
 │   ├── timeline_view.py       # QGraphicsView (起動時 8:00 付近にスクロール)
 │   ├── timeline_scene.py      # QGraphicsScene (D&D 新規作成・重複制御・ダブルクリック)
 │   ├── task_block_item.py     # QGraphicsRectItem (移動・リサイズ・右クリック)
 │   ├── time_ruler_item.py     # 左側に時刻ラベル + 横グリッド線
 │   ├── task_list_view.py     # Toggl風タスクリスト (Phase 1.5)
+│   ├── task_edit_dialog.py   # タスク編集ダイアログ
 │   ├── project_list_view.py  # プロジェクト管理 (Phase 1.7)
 │   ├── timer_widget.py       # Toggl風タイマーバー (Phase 1.8)
-│   └── settings_view.py      # 設定画面 (Phase 1.6 - ダミー)
+│   ├── date_nav_widget.py    # 日付ナビゲーション (◀/今日/▶ + カレンダー)
+│   └── settings_view.py      # 設定画面 (スナップ・表示範囲・テーマ)
 ├── controllers/
-│   └── task_controller.py     # View ↔ Model/DB の仲介 (インメモリ dict)
+│   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict)
 └── utils/
-    └── constants.py            # 定数・time_to_y / y_to_time 変換
+    ├── constants.py            # 定数・time_to_y / y_to_time 変換
+    ├── settings.py             # 設定の読み書き (~/.tracker/settings.json)
+    └── theme.py                # テーマ定義・適用 (dark/light/sky/hacker/monokai/solarized)
 ```
 
 ## 設計方針
@@ -95,12 +99,21 @@ tracker/
 - [x] views/main_window.py に「プロジェクト」タブ追加
 - [x] main.py に ProjectListView 接続
 
-### Phase 1.8: Toggl風タイマー計測機能 ← 現在ここ
+### Phase 1.8: Toggl風タイマー計測機能（動作確認済み）
 - [x] views/timer_widget.py (タスク名・プロジェクト・経過時間・▶/■ボタン)
 - [x] controllers/task_controller.py にタイマー管理追加 (QObject継承、QTimer)
 - [x] views/timeline_scene.py の update_task_block を位置・サイズ更新対応に拡張
 - [x] views/main_window.py に TimerWidget 追加 (タブ上部に配置)
 - [x] main.py に TimerWidget 接続
+
+### Phase 1.9: 日付ナビゲーション・設定・テーマ拡充 ← 現在ここ
+- [x] views/date_nav_widget.py (◀/今日/▶ ボタン + QCalendarWidget ポップアップ)
+- [x] controllers/task_controller.py を日付別ストレージに変更 (_tasks_by_date)
+- [x] 日付切り替え時の scene/list 再描画 (clear_task_blocks + set_reference_date)
+- [x] タイマー実行中の日付移動対応（タイマーは停止せず、表示日≠タスク日なら更新スキップ）
+- [x] タイムライン表示範囲を設定で変更可能 (デフォルト 7:00〜22:00)
+- [x] テーマ追加: ライト(旧パステル)・スカイ・ハッカー・Monokai・Solarized Light/Dark
+- [x] プロジェクトプルダウンに色付き■アイコン表示
 
 ### Phase 2: SQLite 永続化 & パフォーマンス検証（未着手）
 - [ ] models/database.py (WAL, CRUD, インデックス)

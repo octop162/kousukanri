@@ -54,6 +54,7 @@ class TaskController(QObject):
         project_list_view.project_created.connect(self._on_project_created)
         project_list_view.project_changed.connect(self._on_project_changed)
         project_list_view.project_deleted.connect(self._on_project_deleted)
+        project_list_view.project_order_changed.connect(self._on_project_order_changed)
 
     def set_timer_widget(self, timer_widget):
         """Connect a TimerWidget for start/stop timer."""
@@ -290,9 +291,12 @@ class TaskController(QObject):
 
     # ── project signal handlers ────────────────────────────────
 
+    def _sorted_projects(self) -> list[Project]:
+        return sorted(self._projects.values(), key=lambda p: p.order)
+
     def _sync_projects_to_views(self):
         """Push current project list to all views that need it."""
-        projects = list(self._projects.values())
+        projects = self._sorted_projects()
         self._scene.set_projects(projects)
         if self._list_view is not None:
             self._list_view.update_project_list(projects)
@@ -317,6 +321,13 @@ class TaskController(QObject):
                 self._scene.update_task_block(task)
                 if self._list_view is not None:
                     self._list_view.update_task(task)
+
+    def _on_project_order_changed(self, projects: list):
+        """Update project order after D&D reorder."""
+        for p in projects:
+            if p.id in self._projects:
+                self._projects[p.id].order = p.order
+        self._sync_projects_to_views()
 
     def _on_project_deleted(self, project_id: str):
         self._projects.pop(project_id, None)

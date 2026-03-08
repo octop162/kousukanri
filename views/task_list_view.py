@@ -23,6 +23,7 @@ class TaskListView(QWidget):
         super().__init__(parent)
         self._tasks: list[Task] = []
         self._projects: list[Project] = []
+        self._timing_task_id: str | None = None
         self._init_ui()
 
     def _init_ui(self):
@@ -213,7 +214,9 @@ class TaskListView(QWidget):
         self._tasks = list(tasks)
         self._rebuild_table()
 
-    def add_task(self, task: Task):
+    def add_task(self, task: Task, timing: bool = False):
+        if timing:
+            self._timing_task_id = task.id
         self._tasks.append(task)
         self._rebuild_table()
 
@@ -235,6 +238,10 @@ class TaskListView(QWidget):
 
     # ── Table helpers ──
 
+    def stop_timing(self):
+        """計測終了: タイミング表示を解除してテーブルを更新する。"""
+        self._timing_task_id = None
+
     def _rebuild_table(self):
         self._tasks.sort(key=lambda t: t.start_time)
         self._table.setRowCount(0)
@@ -250,18 +257,22 @@ class TaskListView(QWidget):
 
         self._table.setItem(row, 1, QTableWidgetItem(task.name))
         self._table.setItem(row, 2, QTableWidgetItem(task.start_time.strftime("%H:%M:%S")))
-        self._table.setItem(row, 3, QTableWidgetItem(task.end_time.strftime("%H:%M:%S")))
+        is_timing = task.id == self._timing_task_id
+        self._table.setItem(row, 3, QTableWidgetItem("-" if is_timing else task.end_time.strftime("%H:%M:%S")))
 
-        delta = task.end_time - task.start_time
-        total_sec = int(delta.total_seconds())
-        h, rem = divmod(total_sec, 3600)
-        m, s = divmod(rem, 60)
-        if h:
-            duration_str = f"{h}h {m}m {s}s"
-        elif m:
-            duration_str = f"{m}m {s}s"
+        if is_timing:
+            duration_str = "-"
         else:
-            duration_str = f"{s}s"
+            delta = task.end_time - task.start_time
+            total_sec = int(delta.total_seconds())
+            h, rem = divmod(total_sec, 3600)
+            m, s = divmod(rem, 60)
+            if h:
+                duration_str = f"{h}h {m}m {s}s"
+            elif m:
+                duration_str = f"{m}m {s}s"
+            else:
+                duration_str = f"{s}s"
         self._table.setItem(row, 4, QTableWidgetItem(duration_str))
 
         project = self._find_project(task.project_id)

@@ -87,6 +87,7 @@ def main():
 
     controller.load_from_db()
 
+    app.aboutToQuit.connect(controller.stop_running_timer)
     app.aboutToQuit.connect(db.close)
     sys.exit(app.exec())
 

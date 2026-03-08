@@ -212,6 +212,13 @@ class TaskController(QObject):
             if self._db is not None:
                 self._db.insert_routine(before)
 
+    def stop_running_timer(self):
+        """アプリ終了時に計測中タスクを停止してDBに保存する。"""
+        if self._running_task_id is not None:
+            if self._timer_widget is not None:
+                self._timer_widget.force_stop()
+            self._on_timer_stopped()
+
     def is_idle(self) -> bool:
         """Return True if no timer is running and no task covers current time."""
         if self._running_task_id is not None:
@@ -296,7 +303,7 @@ class TaskController(QObject):
         self._tasks[task.id] = task
         self._scene.add_task_block(task)
         if self._list_view is not None:
-            self._list_view.add_task(task)
+            self._list_view.add_task(task, timing=True)
         if self._timer_widget is not None:
             self._timer_widget.add_task_to_history(task)
 
@@ -321,8 +328,7 @@ class TaskController(QObject):
         # 別の日付を表示中ならUI更新をスキップ（タスク自体はバックグラウンドで伸び続ける）
         if task_date == self._current_date:
             self._scene.update_task_block(task)
-            if self._list_view is not None:
-                self._list_view.update_task(task)
+            # リストは計測終了時のみ更新（tick 中は操作を妨げない）
 
     def _on_timer_stopped(self):
         self._tick_timer.stop()
@@ -343,6 +349,7 @@ class TaskController(QObject):
             if task_date == self._current_date:
                 self._scene.update_task_block(task)
                 if self._list_view is not None:
+                    self._list_view.stop_timing()
                     self._list_view.update_task(task)
             self._record_undo("task_update", [(old_snapshot, replace(task))])
         self._running_task_id = None
@@ -464,6 +471,9 @@ class TaskController(QObject):
         self._scene.update_task_block(task)
         if self._db is not None:
             self._db.update_task(task)
+        # 計測中タスクの開始時間が変わったらタイマー表示を同期
+        if task.id == self._running_task_id and self._timer_widget is not None:
+            self._timer_widget.update_start_time(task.start_time)
         self._record_undo("task_update", [(old_snapshot, replace(task))])
         self._refresh_export_view()
 

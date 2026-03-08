@@ -233,6 +233,10 @@ class TimerWidget(QWidget):
         self._toggle_btn.setStyleSheet(self._btn_style(self._theme.get("timer_start", "#2ECC71")))
         self._start_time = None
 
+    def update_start_time(self, start_time: datetime):
+        """計測中タスクの開始時間が外部で変更された場合にタイマー表示を同期する。"""
+        self._start_time = start_time
+
     def force_stop(self):
         """Stop the timer without emitting signals (called when running task is deleted externally)."""
         self._running = False

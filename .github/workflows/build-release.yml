@@ -33,11 +33,13 @@ jobs:
 
       - name: Build CLI
         run: |
-          uv run python -m nuitka --onefile --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=KousuKanri-cli.exe --assume-yes-for-downloads cli.py
+          uv run python -m nuitka --standalone --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=KousuKanri-cli.exe --assume-yes-for-downloads cli.py
 
       - name: Prepare release assets
         run: |
-          Copy-Item dist/KousuKanri-cli.exe dist/main.dist/KousuKanri-cli.exe
+          Copy-Item dist/cli.dist/KousuKanri-cli.exe dist/main.dist/KousuKanri-cli.exe
+          Copy-Item dist/cli.dist/*.dll dist/main.dist/ -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path dist/main.dist/data -Force
           Compress-Archive -Path dist/main.dist/* -DestinationPath kousukanri-windows.zip
         shell: pwsh
 

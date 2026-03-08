@@ -61,9 +61,9 @@ uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-m
 ### CLI
 
 ```bash
-uv run python -m nuitka --onefile --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=KousuKanri-cli.exe --assume-yes-for-downloads cli.py
+uv run python -m nuitka --standalone --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=KousuKanri-cli.exe --assume-yes-for-downloads cli.py
 ```
 
-`dist/KousuKanri-cli.exe` が生成される。GUI の `dist/main.dist/` に入れて一緒に配布できる。
+`dist/cli.dist/` に生成される。exe を GUI の `dist/main.dist/` にコピーして一緒に配布できる。
 
 > `v*` タグを push すると GitHub Actions で自動ビルド&リリースされる。

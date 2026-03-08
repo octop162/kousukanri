@@ -135,6 +135,15 @@ class TimelineScene(QGraphicsScene):
             return (exclude.task.start_time, exclude.task.end_time)
         return (start, end)
 
+    def clear_task_blocks(self):
+        """Remove all TaskBlockItems from the scene (keep ruler and other items)."""
+        for block in self._get_blocks():
+            self.removeItem(block)
+
+    def set_reference_date(self, dt):
+        """Update the reference date used for coordinate calculations."""
+        self._reference_date = dt
+
     def add_task_block(self, task: Task) -> TaskBlockItem:
         block = TaskBlockItem(task, self._reference_date, scene=self)
         self.addItem(block)

@@ -8,23 +8,29 @@ from views.task_list_view import TaskListView
 from views.project_list_view import ProjectListView
 from views.settings_view import SettingsView
 from views.timer_widget import TimerWidget
+from views.date_nav_widget import DateNavWidget
 
 
 class MainWindow(QMainWindow):
     def __init__(self, scene: TimelineScene, list_view: TaskListView,
                  project_list_view: ProjectListView,
                  settings_view: SettingsView,
-                 timer_widget: TimerWidget, parent=None):
+                 timer_widget: TimerWidget,
+                 date_nav_widget: DateNavWidget = None,
+                 parent=None):
         super().__init__(parent)
         self.setWindowTitle("Time Tracker PoC")
-        self.resize(1200, 800)
+        self.resize(1200, 1000)
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
 
-        # Left panel: timeline + zoom bar
+        # Left panel: date nav + timeline + zoom bar
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
+
+        if date_nav_widget is not None:
+            left_layout.addWidget(date_nav_widget)
 
         timeline_view = TimelineView(scene, self)
         left_layout.addWidget(timeline_view)

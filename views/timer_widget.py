@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QLineEdit, QComboBox, QLabel, QPushButton,
@@ -24,6 +24,7 @@ class TimerWidget(QWidget):
         super().__init__(parent)
         self._running = False
         self._start_time: datetime | None = None
+        self._display_date: date = date.today()
         self._projects: list[Project] = []
         # History: list of (task_name, project_id) unique pairs, most recent last
         self._history: list[tuple[str, str | None]] = []
@@ -142,6 +143,12 @@ class TimerWidget(QWidget):
         self._history.append(key)
         self._build_completer_items()
 
+    # ── Display date ──
+
+    def set_display_date(self, d: date):
+        """Update the display date (used for creating tasks via + button)."""
+        self._display_date = d
+
     # ── Add task ──
 
     def _on_add(self):
@@ -149,7 +156,7 @@ class TimerWidget(QWidget):
         from views.task_edit_dialog import TaskEditDialog
 
         from utils.settings import load_settings
-        now = datetime.now().replace(microsecond=0)
+        now = datetime.combine(self._display_date, datetime.now().time()).replace(microsecond=0)
         name = self._name_edit.text().strip() or "あたらしいタスク"
         project_id = self._project_combo.currentData()
         duration = load_settings()["default_duration_minutes"]

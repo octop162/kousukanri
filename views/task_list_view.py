@@ -120,6 +120,11 @@ class TaskListView(QWidget):
     def update_project_list(self, projects: list[Project]):
         self._projects = projects
 
+    def set_tasks(self, tasks: list[Task]):
+        """Replace the entire task list (used on date change)."""
+        self._tasks = list(tasks)
+        self._rebuild_table()
+
     def add_task(self, task: Task):
         self._tasks.append(task)
         self._rebuild_table()

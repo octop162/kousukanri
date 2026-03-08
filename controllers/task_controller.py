@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -15,14 +15,17 @@ class TaskController(QObject):
         super().__init__(parent)
         self._scene = scene
         self._db = database
-        self._tasks: dict[str, Task] = {}
+        self._tasks_by_date: dict[date, dict[str, Task]] = {}
+        self._current_date: date = date.today()
         self._projects: dict[str, Project] = {}
         self._list_view = None
         self._project_list_view = None
         self._timer_widget = None
+        self._date_nav_widget = None
 
         # Timer state
         self._running_task_id: str | None = None
+        self._running_task_date: date | None = None
         self._tick_timer = QTimer(self)
         self._tick_timer.setInterval(1000)
         self._tick_timer.timeout.connect(self._on_timer_tick)
@@ -30,6 +33,13 @@ class TaskController(QObject):
         scene.task_created.connect(self._on_task_created)
         scene.task_changed.connect(self._on_task_changed)
         scene.task_deleted.connect(self._on_task_deleted)
+
+    @property
+    def _tasks(self) -> dict[str, Task]:
+        return self._tasks_by_date.setdefault(self._current_date, {})
+
+    def _tasks_for_date(self, d: date) -> dict[str, Task]:
+        return self._tasks_by_date.setdefault(d, {})
 
     def set_list_view(self, list_view):
         """Connect a TaskListView for bidirectional sync."""
@@ -54,6 +64,48 @@ class TaskController(QObject):
         timer_widget.timer_project_changed.connect(self._on_timer_project_changed)
         timer_widget.task_add_requested.connect(self._on_task_add_requested)
 
+    def set_date_nav_widget(self, date_nav_widget):
+        """Connect a DateNavWidget for date navigation."""
+        self._date_nav_widget = date_nav_widget
+        date_nav_widget.date_requested.connect(self._on_date_requested)
+
+    # ── Date navigation ────────────────────────────────────────
+
+    def _on_date_requested(self, new_date):
+        """Handle date change request from DateNavWidget."""
+        if isinstance(new_date, datetime):
+            new_date = new_date.date()
+        self.change_date(new_date)
+
+    def change_date(self, new_date: date):
+        """Switch to a different date, reloading views."""
+        if new_date == self._current_date:
+            return
+        self._current_date = new_date
+        self._reload_views_for_date()
+
+    def _reload_views_for_date(self):
+        """Clear and repopulate scene and list for the current date."""
+        ref = datetime(self._current_date.year, self._current_date.month, self._current_date.day)
+
+        # Update scene
+        self._scene.clear_task_blocks()
+        self._scene.set_reference_date(ref)
+        for task in self._tasks.values():
+            self._scene.add_task_block(task)
+
+        # Update list view
+        if self._list_view is not None:
+            self._list_view.set_tasks(list(self._tasks.values()))
+
+        # Update date nav widget label
+        if self._date_nav_widget is not None:
+            self._date_nav_widget.set_date(self._current_date)
+
+        # Update timer widget display date
+        if self._timer_widget is not None:
+            self._timer_widget.set_display_date(self._current_date)
+
     # ── Timer handlers ─────────────────────────────────────────
 
     def _on_timer_started(self, name: str, project_id: str):
@@ -68,6 +120,8 @@ class TaskController(QObject):
             name=name, start_time=now, end_time=end,
             color=color, project_id=pid,
         )
+        # Store task in the current display date's bucket
+        self._running_task_date = self._current_date
         self._tasks[task.id] = task
         self._scene.add_task_block(task)
         if self._list_view is not None:
@@ -81,54 +135,68 @@ class TaskController(QObject):
     def _on_timer_tick(self):
         if self._running_task_id is None:
             return
-        task = self._tasks.get(self._running_task_id)
+        task_date = self._running_task_date or self._current_date
+        tasks = self._tasks_for_date(task_date)
+        task = tasks.get(self._running_task_id)
         if task is None:
             return
         task.end_time = datetime.now().replace(microsecond=0)
-        self._scene.update_task_block(task)
-        if self._list_view is not None:
-            self._list_view.update_task(task)
+        # Only update views if we're viewing the same date as the running task
+        if task_date == self._current_date:
+            self._scene.update_task_block(task)
+            if self._list_view is not None:
+                self._list_view.update_task(task)
 
     def _on_timer_stopped(self):
         self._tick_timer.stop()
         if self._running_task_id is None:
             return
-        task = self._tasks.get(self._running_task_id)
+        task_date = self._running_task_date or self._current_date
+        tasks = self._tasks_for_date(task_date)
+        task = tasks.get(self._running_task_id)
         if task is not None:
             task.end_time = datetime.now().replace(microsecond=0)
             # Ensure end > start
             if task.end_time <= task.start_time:
                 from datetime import timedelta
                 task.end_time = task.start_time + timedelta(seconds=1)
-            self._scene.update_task_block(task)
-            if self._list_view is not None:
-                self._list_view.update_task(task)
+            if task_date == self._current_date:
+                self._scene.update_task_block(task)
+                if self._list_view is not None:
+                    self._list_view.update_task(task)
         self._running_task_id = None
+        self._running_task_date = None
 
     def _on_timer_name_changed(self, name: str):
         if self._running_task_id is None:
             return
-        task = self._tasks.get(self._running_task_id)
+        task_date = self._running_task_date or self._current_date
+        tasks = self._tasks_for_date(task_date)
+        task = tasks.get(self._running_task_id)
         if task is None:
             return
         task.name = name or "あたらしいタスク"
-        self._scene.update_task_block(task)
-        if self._list_view is not None:
-            self._list_view.update_task(task)
+        if task_date == self._current_date:
+            self._scene.update_task_block(task)
+            if self._list_view is not None:
+                self._list_view.update_task(task)
 
     def _on_timer_project_changed(self, project_id: str):
         if self._running_task_id is None:
             return
-        task = self._tasks.get(self._running_task_id)
+        task_date = self._running_task_date or self._current_date
+        tasks = self._tasks_for_date(task_date)
+        task = tasks.get(self._running_task_id)
         if task is None:
             return
         pid = project_id if project_id else None
         project = self._projects.get(pid) if pid else None
         task.project_id = pid
         task.color = project.color if project else DEFAULT_BLOCK_COLOR
-        self._scene.update_task_block(task)
-        if self._list_view is not None:
-            self._list_view.update_task(task)
+        if task_date == self._current_date:
+            self._scene.update_task_block(task)
+            if self._list_view is not None:
+                self._list_view.update_task(task)
 
     # ── signal handler (from timer add button) ─────────────────
 
@@ -169,6 +237,7 @@ class TaskController(QObject):
         if self._running_task_id == task_id:
             self._tick_timer.stop()
             self._running_task_id = None
+            self._running_task_date = None
             if self._timer_widget is not None:
                 self._timer_widget.force_stop()
 
@@ -229,6 +298,7 @@ class TaskController(QObject):
             self._list_view.update_project_list(projects)
         if self._timer_widget is not None:
             self._timer_widget.update_project_list(projects)
+
     def _on_project_created(self, project: Project):
         self._projects[project.id] = project
         if self._project_list_view is not None:

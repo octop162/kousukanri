@@ -12,7 +12,6 @@
 ```
 tracker/
 ├── main.py                    # GUI エントリーポイント
-├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects/report/reports/reports-by-day)
 ├── api_server.py              # Flask API サーバー (daemon スレッド、設定で有効化)
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
@@ -38,6 +37,7 @@ tracker/
 │   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict、reload_current_date)
 └── utils/
     ├── constants.py            # 定数・time_to_y / y_to_time 変換
+    ├── report_helpers.py       # レポート集計・フォーマット関数 (api_server/report_view が利用)
     ├── settings.py             # 設定の読み書き (~/.tracker/ or exe隣/data/、api_server_enabled/api_port)
     └── theme.py                # テーマ定義・適用 (dark/light/sky/black_green/monokai/solarized)
 ```
@@ -141,19 +141,9 @@ tracker/
 - [x] 日付切替時の遅延ロード (_reload_views_for_date で DB から取得)
 - [x] タイマー: tick では DB 書き込みなし、stop 時のみ書き込み
 
-### Phase 2.1: CLI ツール（動作確認済み）
-- [x] cli.py (argparse ベース、add/list/add-project/list-projects/report/reports/reports-by-day)
-- [x] add: タスク名・開始・終了時刻・プロジェクト指定で DB に直接追加
-- [x] list: 日付指定でタスク一覧表示 (開始時刻順)
-- [x] add-project: プロジェクト追加 (名前・色指定)
-- [x] list-projects: プロジェクト一覧表示
-- [x] report: 1日のプロジェクト別レポート (--date, --yesterday)
-- [x] reports: 期間内のプロジェクト別集計 (--from, --to, --since)
-- [x] reports-by-day: 期間内の日別レポート (--from, --to, --since)
-
 ### Phase 2.2: CI/CD・ビルド・配布（動作確認済み）
 - [x] .github/workflows/build-release.yml (Nuitka standalone ビルド)
-- [x] GUI + CLI を zip に同梱してリリース
+- [x] GUI を zip でリリース
 - [x] icon.png / icon.ico (アプリアイコン)
 - [x] Nuitka ビルド時は exe 隣の data/ にデータ配置 (__compiled__ 判定)
 
@@ -165,9 +155,7 @@ tracker/
 - [x] 設定画面にテスト通知ボタン追加
 - [x] QLocalServer/Socket による多重起動防止（既存ウィンドウを前面に復帰）
 
-### Phase 2.4: CLI レポート・一括編集（動作確認済み）
-- [x] reports: 期間内のプロジェクト別集計 (--from, --to, --since)
-- [x] reports-by-day: 期間内の日別レポート (--from, --to, --since)
+### Phase 2.4: 一括編集（動作確認済み）
 - [x] タスクリストで複数選択 → 右クリック「一括編集」（名前・プロジェクトをまとめて変更）
 - [x] タイマー開始時に表示日が今日でなければ自動で今日に切り替え
 
@@ -178,8 +166,7 @@ tracker/
 - [x] ReportsByDayView: 日別レポート (QDateEdit×2 + 更新ボタン、DB直接参照)
 - [x] main_window.py 下部タブに「レポート」「全レポート」「日毎レポート」追加
 - [x] controller に set_report_view 追加 (ExportView と同タイミングでリアルタイム更新)
-- [x] CLI 全レポートコマンドに --json オプション追加 (report/reports/reports-by-day)
-- [x] cli.py に _format_report_table (テキスト返却) / _totals_to_json_list (JSON変換) を新設
+- [x] utils/report_helpers.py にレポート集計・フォーマット関数を集約
 
 ### Phase 2.6: API サーバー（動作確認済み）
 - [x] api_server.py (Flask ベース、daemon スレッド、CORS 対応)
@@ -189,13 +176,11 @@ tracker/
 - [x] settings_view.py に API サーバー有効化・ポート設定 UI
 - [x] models/database.py に check_same_thread パラメータ対応
 - [x] pyproject.toml に flask>=3.0 依存追加
-- [x] CLI 書き込み後に QLocalSocket で GUI へ reload 通知 (イベント駆動 IPC)
 - [x] HTML エンドポイント追加 (`/`, `/tasks`, `/projects`, `/report`, `/reports`, `/reports-by-day`)
 - [x] トップページにフォーム付きナビゲーション (日付・内訳・シンプル選択)
-- [x] `simple=1` パラメータでプロジェクト非表示 (API/HTML/CLI `--simple`/GUI チェック)
+- [x] `simple=1` パラメータでプロジェクト非表示 (API/HTML/GUI チェック)
 - [x] タスクブロックのテキスト折り返し (TextWordWrap)
 - [x] ウィンドウタイトル・トレイ・通知を「工数管理」に変更
-- [x] CLI stdout を UTF-8 に強制 (Windows cp932 文字化け対策)
 - [x] タイマー補完候補を過去30日に限定 (get_recent_task_names クエリ)
 - [x] 出力タブに「プロジェクトなし」チェックボックス追加
 - [x] タスクリストに「シンプル表示」チェックボックス追加 (プロジェクト列非表示)
@@ -232,26 +217,14 @@ tracker/
 
 #### GUI リアルタイム同期
 - API POST → `ApiNotifier.data_changed` シグナル (同一プロセス、スレッド間)
-- CLI 書き込み → `QLocalSocket` で `"reload"` メッセージ送信 (プロセス間 IPC)
-- どちらもイベント駆動、ポーリングなし
+- イベント駆動、ポーリングなし
 
 ## 起動方法
 ```
-# GUI
 kousu-kanri-gui.exe
-
-# CLI
-kousu-kanri.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
-kousu-kanri.exe list [--date <YYYY-MM-DD>] [--yesterday] [--simple]
-kousu-kanri.exe add-project <name> [--color <#HEX>]
-kousu-kanri.exe list-projects
-kousu-kanri.exe report [--date <YYYY-MM-DD>] [--yesterday] [--detail] [--json]
-kousu-kanri.exe reports [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>] [--detail] [--json]
-kousu-kanri.exe reports-by-day [--from <YYYY-MM-DD>] [--to <YYYY-MM-DD>] [--since <N|Nd>] [--detail] [--json]
 ```
 
 ### 開発時
 ```
-uv run python main.py       # GUI
-uv run python cli.py <cmd>   # CLI
+uv run python main.py
 ```

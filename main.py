@@ -80,7 +80,7 @@ def main():
     else:
         window.show()
 
-    # Handle connections from other instances / CLI reload notifications
+    # Handle connections from other instances (multiple-instance prevention)
     def _on_new_connection():
         conn = server.nextPendingConnection()
         if conn is None:
@@ -88,9 +88,7 @@ def main():
         conn.waitForReadyRead(500)
         msg = bytes(conn.readAll()).decode("utf-8", errors="ignore")
         conn.close()
-        if msg == "reload":
-            controller.reload_current_date()
-        else:
+        if msg != "reload":
             window.showNormal()
             window.activateWindow()
 

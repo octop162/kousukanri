@@ -13,48 +13,15 @@
 - **エクスポート** — テキスト形式でクリップボードにコピー
 - **テーマ** — Dark / Light / Sky / BlackGreen / Monokai / Solarized
 - **一括編集** — 複数タスクを選択して名前・プロジェクトをまとめて変更
-- **CLI** — ターミナルからタスク追加・一覧表示・プロジェクト別レポート（`--yesterday` 対応）
 - **システムトレイ** — 常時トレイアイコン表示。最小化/閉じるでトレイに格納、多重起動防止
 - **API サーバー** — Flask ベースの REST API。設定画面で有効化、外部ツールから HTTP 経由で操作可能
 - **データ永続化** — SQLite (`data/tracker.db`)
 
 
 ## 起動方法
-### GUI で起動
 
 ```bash
 kousu-kanri-gui.exe
-```
-
-### CLI で使う
-
-```bash
-# タスク追加
-kousu-kanri.exe add "コードレビュー" 09:00 10:30
-kousu-kanri.exe add "定例会" 11:00 12:00 --project ミーティング
-
-# タスク一覧
-kousu-kanri.exe list
-kousu-kanri.exe list --yesterday
-kousu-kanri.exe list --date 2026-03-07
-kousu-kanri.exe list --simple                  # プロジェクト表示を省略
-
-# プロジェクト管理
-kousu-kanri.exe add-project "ミーティング" --color "#4CAF50"
-kousu-kanri.exe list-projects
-
-# レポート（1日のプロジェクト別集計）
-kousu-kanri.exe report
-kousu-kanri.exe report --yesterday
-kousu-kanri.exe report --date 2026-03-07
-
-# 期間集計（プロジェクト別小計）
-kousu-kanri.exe reports --since 7d
-kousu-kanri.exe reports --from 2026-03-01 --to 2026-03-08
-
-# 期間の日別レポート
-kousu-kanri.exe reports-by-day --since 30
-kousu-kanri.exe reports-by-day --from 2026-03-01 --to 2026-03-08
 ```
 
 ### API で使う
@@ -100,8 +67,7 @@ curl "http://localhost:8321/api/reports-by-day?since=30d&detail=1"
 
 ブラウザで `http://localhost:8321/` を開くと、フォーム付きの HTML ページでタスクやレポートを閲覧できる。
 
-> API・CLI 経由でタスクやプロジェクトを追加すると、GUI がリアルタイムで自動更新される。
-> ポーリングではなくイベント駆動 — API は Qt シグナル、CLI は QLocalSocket IPC で即座に通知。
+> API 経由でタスクやプロジェクトを追加すると、GUI がリアルタイムで自動更新される（Qt シグナルによるイベント駆動）。
 
 ## セットアップ
 
@@ -112,11 +78,6 @@ curl "http://localhost:8321/api/reports-by-day?since=30d&detail=1"
 ```bash
 # `dist/main.dist/` に exe と依存 DLL が生成される。
 uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
-# `dist/cli.dist/` に生成される。exe を GUI の `dist/main.dist/` にコピーして一緒に配布できる。
-uv run python -m nuitka --standalone --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=kousu-kanri.exe --assume-yes-for-downloads cli.py
-# CLI の exe と DLL を GUI 側にコピーして1フォルダにまとめる
-copy dist\cli.dist\kousu-kanri.exe dist\main.dist\
-copy dist\cli.dist\*.dll dist\main.dist\
 ```
 
 `dist/main.dist/` がそのまま配布フォルダになる。

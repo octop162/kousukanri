@@ -8,9 +8,9 @@ from PySide6.QtCore import Qt, QDate
 
 from models.task import Task
 from models.project import Project
-from cli import (_aggregate_by_project, _merge_aggregates,
-                 _format_report_table, _totals_to_json_list,
-                 _fmt_time, _iter_date_range)
+from utils.report_helpers import (_aggregate_by_project, _merge_aggregates,
+                                  _format_report_table, _totals_to_json_list,
+                                  _fmt_time, _iter_date_range)
 
 
 class ReportView(QWidget):

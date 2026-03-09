@@ -13,7 +13,7 @@ from models.database import Database
 from models.task import Task
 from models.project import Project
 from utils.constants import DEFAULT_BLOCK_COLOR
-from cli import _aggregate_by_project, _merge_aggregates, _totals_to_json_list, _fmt_time
+from utils.report_helpers import _aggregate_by_project, _merge_aggregates, _totals_to_json_list, _fmt_time
 
 
 class ApiNotifier(QObject):

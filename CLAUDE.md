@@ -185,17 +185,27 @@ tracker/
 - [x] api_server.py (Flask ベース、daemon スレッド、CORS 対応)
 - [x] ApiNotifier(QObject) で API→GUI リアルタイム同期 (data_changed シグナル)
 - [x] controller に reload_current_date() 追加 (キャッシュクリア + 全View更新)
-- [x] main.py に ApiServer 起動・停止の結線追加
+- [x] main.py に ApiServer 起動・停止の結線追加 (atexit + server_close で確実にポート解放)
 - [x] settings_view.py に API サーバー有効化・ポート設定 UI
 - [x] models/database.py に check_same_thread パラメータ対応
 - [x] pyproject.toml に flask>=3.0 依存追加
+- [x] CLI 書き込み後に QLocalSocket で GUI へ reload 通知 (イベント駆動 IPC)
+- [x] HTML エンドポイント追加 (`/`, `/tasks`, `/projects`, `/report`, `/reports`, `/reports-by-day`)
+- [x] トップページにフォーム付きナビゲーション (日付・内訳・シンプル選択)
+- [x] `simple=1` パラメータでプロジェクト非表示 (API/HTML/CLI `--simple`/GUI チェック)
+- [x] タスクブロックのテキスト折り返し (TextWordWrap)
+- [x] ウィンドウタイトル・トレイ・通知を「工数管理」に変更
+- [x] CLI stdout を UTF-8 に強制 (Windows cp932 文字化け対策)
+- [x] タイマー補完候補を過去30日に限定 (get_recent_task_names クエリ)
+- [x] 出力タブに「プロジェクトなし」チェックボックス追加
+- [x] タスクリストに「シンプル表示」チェックボックス追加 (プロジェクト列非表示)
 
-#### API エンドポイント (デフォルト: http://127.0.0.1:8321)
+#### JSON API エンドポイント (デフォルト: http://127.0.0.1:8321)
 
 | Method | Path | 説明 |
 |--------|------|------|
 | GET | `/api/health` | ヘルスチェック (`{"status": "ok"}`) |
-| GET | `/api/tasks?date=YYYY-MM-DD` | タスク一覧 (デフォルト: 今日) |
+| GET | `/api/tasks?date=YYYY-MM-DD&simple=1` | タスク一覧 (デフォルト: 今日) |
 | POST | `/api/tasks` | タスク追加 (`{name, start, end, date?, project?}`) |
 | GET | `/api/projects` | プロジェクト一覧 |
 | POST | `/api/projects` | プロジェクト追加 (`{name, color?}`) |
@@ -203,11 +213,27 @@ tracker/
 | GET | `/api/reports?from=...&to=...&since=...&detail=1` | 期間集計 |
 | GET | `/api/reports-by-day?from=...&to=...&since=...&detail=1` | 日別レポート |
 
+#### HTML エンドポイント
+
+| Path | 説明 |
+|------|------|
+| `/` | トップページ (フォーム付きナビゲーション) |
+| `/tasks?date=...&simple=1` | タスク一覧 (ul/li) |
+| `/projects` | プロジェクト一覧 (色付き) |
+| `/report?date=...&detail=1&simple=1` | 1日レポート |
+| `/reports?from=...&to=...&detail=1&simple=1` | 期間集計 |
+| `/reports-by-day?from=...&to=...&detail=1&simple=1` | 日別レポート |
+
 #### スレッド安全性
-- Flask は daemon スレッドで動作 (werkzeug, `use_reloader=False`)
+- Flask は daemon スレッドで動作 (werkzeug, threaded=True)
 - 専用 Database インスタンス (`check_same_thread=False`)
 - SQLite WAL モードにより GUI スレッドと安全に並行アクセス
 - POST 成功後に `ApiNotifier.data_changed.emit()` → Qt QueuedConnection でメインスレッドへ
+
+#### GUI リアルタイム同期
+- API POST → `ApiNotifier.data_changed` シグナル (同一プロセス、スレッド間)
+- CLI 書き込み → `QLocalSocket` で `"reload"` メッセージ送信 (プロセス間 IPC)
+- どちらもイベント駆動、ポーリングなし
 
 ## 起動方法
 ```
@@ -216,7 +242,7 @@ kousu-kanri-gui.exe
 
 # CLI
 kousu-kanri.exe add <name> <start> <end> [--project <name>] [--date <YYYY-MM-DD>]
-kousu-kanri.exe list [--date <YYYY-MM-DD>] [--yesterday]
+kousu-kanri.exe list [--date <YYYY-MM-DD>] [--yesterday] [--simple]
 kousu-kanri.exe add-project <name> [--color <#HEX>]
 kousu-kanri.exe list-projects
 kousu-kanri.exe report [--date <YYYY-MM-DD>] [--yesterday] [--detail] [--json]

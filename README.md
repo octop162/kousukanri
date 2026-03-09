@@ -35,6 +35,7 @@ kousu-kanri.exe add "定例会" 11:00 12:00 --project ミーティング
 kousu-kanri.exe list
 kousu-kanri.exe list --yesterday
 kousu-kanri.exe list --date 2026-03-07
+kousu-kanri.exe list --simple                  # プロジェクト表示を省略
 
 # プロジェクト管理
 kousu-kanri.exe add-project "ミーティング" --color "#4CAF50"
@@ -67,6 +68,8 @@ curl http://localhost:8321/api/health
 curl http://localhost:8321/api/tasks
 # 日付指定
 curl http://localhost:8321/api/tasks?date=2026-03-08
+# プロジェクト情報を省略
+curl "http://localhost:8321/api/tasks?simple=1"
 
 # タスク追加
 curl -X POST http://localhost:8321/api/tasks \
@@ -93,8 +96,10 @@ curl "http://localhost:8321/api/reports?from=2026-03-01&to=2026-03-08"
 curl "http://localhost:8321/api/reports-by-day?since=30d&detail=1"
 ```
 
-> API 経由でタスクやプロジェクトを追加すると、GUI がリアルタイムで自動更新される。
-> ポーリングではなくイベント駆動 — POST 成功時に Qt シグナル (`ApiNotifier.data_changed`) を emit し、メインスレッドで即座に全 View を再描画する。
+ブラウザで `http://localhost:8321/` を開くと、フォーム付きの HTML ページでタスクやレポートを閲覧できる。
+
+> API・CLI 経由でタスクやプロジェクトを追加すると、GUI がリアルタイムで自動更新される。
+> ポーリングではなくイベント駆動 — API は Qt シグナル、CLI は QLocalSocket IPC で即座に通知。
 
 ## セットアップ
 

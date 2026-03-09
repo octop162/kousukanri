@@ -29,7 +29,7 @@ jobs:
 
       - name: Build GUI
         run: |
-          uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --include-data-dir=templates/=templates/ --output-dir=dist --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
 
       - name: Prepare release assets
         run: |

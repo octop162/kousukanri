@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_report_items.html" import report_li %}
+{% block title %}期間集計{% endblock %}
+{% block heading %}期間集計{% endblock %}
+{% block content %}
+{% if items %}
+<p>{{ start_date }} 〜 {{ end_date }} ({% for link in toggle_links %}{% if not loop.first %} / {% endif %}<a href="{{ link.href }}">{{ link.label }}</a>{% endfor %})</p>
+<ul>
+{% for item in items %}
+{{ report_li(item.name, item.secs, item.details) }}
+{% endfor %}
+</ul>
+<p><b>合計: {{ grand|fmt_time }}</b></p>
+{% else %}
+<p>タスクはありません</p>
+{% endif %}
+{% endblock %}

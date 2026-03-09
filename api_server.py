@@ -1,19 +1,74 @@
 """HTTP API server for tracker — Flask-based, runs in a daemon thread."""
 
 import atexit
+import sys
 import threading
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
-from html import escape
-
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from PySide6.QtCore import QObject, Signal
 
 from models.database import Database
 from models.task import Task
 from models.project import Project
 from utils.constants import DEFAULT_BLOCK_COLOR
-from utils.report_helpers import _aggregate_by_project, _merge_aggregates, _totals_to_json_list, _fmt_time
+from utils.report_helpers import (
+    _aggregate_by_project, _aggregate_by_task, _merge_aggregates,
+    _totals_to_json_list, _fmt_time,
+)
+
+
+def _get_template_dir() -> str:
+    if "__compiled__" in globals():
+        return str(Path(sys.executable).parent / "templates")
+    return str(Path(__file__).parent / "templates")
+
+
+def _toggle_links(path, date_str=None, start_date=None, end_date=None,
+                  detail=False, simple=False):
+    """Build toggle links for detail/simple switching.
+
+    Returns list of dicts: [{"href": "...", "label": "..."}, ...]
+    """
+    base_params = []
+    if date_str:
+        base_params.append(f"date={date_str}")
+    if start_date:
+        base_params.append(f"from={start_date.isoformat()}")
+    if end_date:
+        base_params.append(f"to={end_date.isoformat()}")
+    links = []
+    # detail toggle
+    if not simple:
+        d_params = list(base_params) + ([] if detail else ["detail=1"])
+        d_label = "内訳なし" if detail else "内訳"
+        links.append({"href": f"{path}?{'&'.join(d_params)}", "label": d_label})
+    # simple toggle
+    s_params = list(base_params)
+    if detail and not simple:
+        s_params.append("detail=1")
+    if simple:
+        links.append({"href": f"{path}?{'&'.join(s_params)}", "label": "プロジェクトあり"})
+    else:
+        s_params.append("simple=1")
+        links.append({"href": f"{path}?{'&'.join(s_params)}", "label": "プロジェクトなし"})
+    return links
+
+
+def _build_report_items(totals, details, detail):
+    """Build a list of report item dicts for template rendering.
+
+    Returns list of dicts: [{"name": ..., "secs": ..., "details": ...}, ...]
+    """
+    items = []
+    for name in sorted(n for n in totals if n != "(なし)"):
+        items.append({"name": name, "secs": totals[name],
+                       "details": details.get(name) if detail else None})
+    if "(なし)" in totals:
+        items.append({"name": "(なし)", "secs": totals["(なし)"],
+                       "details": details.get("(なし)") if detail else None})
+    return items
 
 
 class ApiNotifier(QObject):
@@ -23,8 +78,9 @@ class ApiNotifier(QObject):
 
 def create_app(db: Database, notifier: ApiNotifier) -> Flask:
     """Create and configure the Flask application."""
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder=_get_template_dir())
     app.json.ensure_ascii = False
+    app.jinja_env.filters["fmt_time"] = _fmt_time
 
     @app.after_request
     def add_cors_headers(response):
@@ -33,81 +89,10 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         return response
 
-    _CSS = """
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 720px;
-             margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; line-height: 1.6; }
-      h1 { font-size: 1.4rem; margin-bottom: 1rem; padding-bottom: .5rem;
-           border-bottom: 2px solid #e0e0e0; }
-      h2 { font-size: 1.1rem; margin: 1.2rem 0 .4rem; color: #444; }
-      ul { list-style: none; margin: .5rem 0; }
-      li { padding: .35rem .5rem; border-radius: 4px; }
-      li:nth-child(odd) { background: #f7f7f7; }
-      li ul { margin: .2rem 0 .2rem 1.2rem; }
-      li li { padding: .15rem .5rem; font-size: .9rem; color: #555; }
-      a { color: #2563eb; text-decoration: none; }
-      a:hover { text-decoration: underline; }
-      p { margin: .5rem 0; }
-      b { color: #222; }
-      small { color: #888; }
-      nav { margin-bottom: 1rem; }
-      nav a { margin-right: 1rem; }
-      form { display: inline-flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-      input[type=date] { padding: .3rem .4rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; }
-      button { padding: .3rem .8rem; background: #2563eb; color: #fff; border: none;
-               border-radius: 4px; font-size: .9rem; cursor: pointer; }
-      button:hover { background: #1d4ed8; }
-      label { font-size: .9rem; color: #555; }
-      .form-row { margin: .5rem 0; }
-    """
-
-    def _nav():
-        return ("<nav><a href='/'>トップ</a><a href='/tasks'>タスク</a>"
-                "<a href='/projects'>プロジェクト</a><a href='/report'>レポート</a>"
-                "<a href='/reports'>期間集計</a><a href='/reports-by-day'>日別</a></nav>")
-
-    def _html(title, body):
-        return (f"<!DOCTYPE html><html><head><meta charset='utf-8'>"
-                f"<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                f"<title>{title} - 工数管理</title>"
-                f"<style>{_CSS}</style></head>"
-                f"<body>{_nav()}<h1>{title}</h1>{body}</body></html>",
-                200, {"Content-Type": "text/html; charset=utf-8"})
-
     @app.route("/")
     def index():
         today = date.today().isoformat()
-        body = (
-            "<h2>タスク</h2>"
-            "<div class='form-row'><form action='/tasks' method='get'>"
-            f"<input type='date' name='date' value='{today}'>"
-            "<label><input type='checkbox' name='simple' value='1'> シンプル</label>"
-            "<button>表示</button></form></div>"
-
-            "<h2>プロジェクト</h2>"
-            "<div class='form-row'><a href='/projects'>一覧を表示</a></div>"
-
-            "<h2>レポート（1日）</h2>"
-            "<div class='form-row'><form action='/report' method='get'>"
-            f"<input type='date' name='date' value='{today}'>"
-            "<label><input type='checkbox' name='detail' value='1'> 内訳</label>"
-            "<button>表示</button></form></div>"
-
-            "<h2>期間集計</h2>"
-            "<div class='form-row'><form action='/reports' method='get'>"
-            f"<label>from</label><input type='date' name='from' value='{today}'>"
-            f"<label>to</label><input type='date' name='to' value='{today}'>"
-            "<label><input type='checkbox' name='detail' value='1'> 内訳</label>"
-            "<button>表示</button></form></div>"
-
-            "<h2>日別レポート</h2>"
-            "<div class='form-row'><form action='/reports-by-day' method='get'>"
-            f"<label>from</label><input type='date' name='from' value='{today}'>"
-            f"<label>to</label><input type='date' name='to' value='{today}'>"
-            "<label><input type='checkbox' name='detail' value='1'> 内訳</label>"
-            "<button>表示</button></form></div>"
-        )
-        return _html("工数管理", body)
+        return render_template("index.html", today=today)
 
     @app.errorhandler(404)
     def not_found(e):
@@ -124,27 +109,15 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
         tasks = db.get_tasks_for_date(date_str)
         tasks.sort(key=lambda t: t.start_time)
         proj_map = {p.id: p.name for p in db.get_all_projects()}
-        items = []
         for t in tasks:
-            proj_tag = ""
-            if not simple:
-                proj = proj_map.get(t.project_id, "") if t.project_id else ""
-                proj_tag = f" <small>[{escape(proj)}]</small>" if proj else ""
-            items.append(f"<li>{escape(t.start_time.strftime('%H:%M'))} - "
-                         f"{escape(t.end_time.strftime('%H:%M'))}  "
-                         f"{escape(t.name)}{proj_tag}</li>")
-        toggle = (f"<a href='/tasks?date={escape(date_str)}'>プロジェクトあり</a>" if simple
-                  else f"<a href='/tasks?date={escape(date_str)}&simple=1'>プロジェクトなし</a>")
-        body = f"<p>{escape(date_str)} ({toggle})</p><ul>{''.join(items)}</ul>" if items else "<p>タスクはありません</p>"
-        return _html("タスク", body)
+            t.project_name = (proj_map.get(t.project_id, "") if t.project_id else "")
+        return render_template("tasks.html", date_str=date_str, simple=simple,
+                               tasks=tasks)
 
     @app.route("/projects")
     def html_projects():
         projects = db.get_all_projects()
-        items = [f"<li><span style='color:{escape(p.color)}'>&#9632;</span> {escape(p.name)}</li>"
-                 for p in projects]
-        body = f"<ul>{''.join(items)}</ul>" if items else "<p>プロジェクトはありません</p>"
-        return _html("プロジェクト", body)
+        return render_template("projects.html", projects=projects)
 
     @app.route("/report")
     def html_report():
@@ -155,20 +128,15 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
         proj_map = {p.id: p.name for p in db.get_all_projects()}
         if simple:
             totals = _aggregate_by_task(tasks)
-            items = [_report_li(n, s) for n, s in sorted(totals.items())]
+            items = [{"name": n, "secs": s, "details": None}
+                     for n, s in sorted(totals.items())]
         else:
             totals, details = _aggregate_by_project(tasks, proj_map, detail=detail)
-            items = []
-            for name in sorted(n for n in totals if n != "(なし)"):
-                items.append(_report_li(name, totals[name], details.get(name) if detail else None))
-            if "(なし)" in totals:
-                items.append(_report_li("(なし)", totals["(なし)"], details.get("(なし)") if detail else None))
+            items = _build_report_items(totals, details, detail)
         grand = sum(totals.values())
         links = _toggle_links("/report", date_str=date_str, detail=detail, simple=simple)
-        body = (f"<p>{escape(date_str)} ({' / '.join(links)})</p>"
-                f"<ul>{''.join(items)}</ul><p><b>合計: {_fmt_time(grand)}</b></p>" if items
-                else "<p>タスクはありません</p>")
-        return _html("レポート", body)
+        return render_template("report.html", date_str=date_str, items=items,
+                               grand=grand, toggle_links=links)
 
     @app.route("/reports")
     def html_reports():
@@ -191,19 +159,16 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
                     _merge_aggregates(totals, all_details, day_totals, day_details)
             d += timedelta(days=1)
         if simple:
-            items = [_report_li(n, s) for n, s in sorted(totals.items())]
+            items = [{"name": n, "secs": s, "details": None}
+                     for n, s in sorted(totals.items())]
         else:
-            items = []
-            for name in sorted(n for n in totals if n != "(なし)"):
-                items.append(_report_li(name, totals[name], all_details.get(name) if detail else None))
-            if "(なし)" in totals:
-                items.append(_report_li("(なし)", totals["(なし)"], all_details.get("(なし)") if detail else None))
+            items = _build_report_items(totals, all_details, detail)
         grand = sum(totals.values())
-        links = _toggle_links("/reports", start_date=start_date, end_date=end_date, detail=detail, simple=simple)
-        body = (f"<p>{start_date.isoformat()} 〜 {end_date.isoformat()} ({' / '.join(links)})</p>"
-                f"<ul>{''.join(items)}</ul><p><b>合計: {_fmt_time(grand)}</b></p>" if items
-                else "<p>タスクはありません</p>")
-        return _html("期間集計", body)
+        links = _toggle_links("/reports", start_date=start_date, end_date=end_date,
+                              detail=detail, simple=simple)
+        return render_template("reports.html", start_date=start_date.isoformat(),
+                               end_date=end_date.isoformat(), items=items,
+                               grand=grand, toggle_links=links)
 
     @app.route("/reports-by-day")
     def html_reports_by_day():
@@ -220,65 +185,23 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
                 if simple:
                     day_totals = _aggregate_by_task(tasks)
                     day_total = sum(day_totals.values())
-                    items = [_report_li(n, s) for n, s in sorted(day_totals.items())]
+                    items = [{"name": n, "secs": s, "details": None}
+                             for n, s in sorted(day_totals.items())]
                 else:
                     day_totals, day_details = _aggregate_by_project(tasks, proj_map, detail=detail)
                     day_total = sum(day_totals.values())
-                    items = []
-                    for name in sorted(n for n in day_totals if n != "(なし)"):
-                        items.append(_report_li(name, day_totals[name], day_details.get(name) if detail else None))
-                    if "(なし)" in day_totals:
-                        items.append(_report_li("(なし)", day_totals["(なし)"], day_details.get("(なし)") if detail else None))
+                    items = _build_report_items(day_totals, day_details, detail)
                 grand_total += day_total
-                sections.append(f"<h2>{d.isoformat()} ({_fmt_time(day_total)})</h2><ul>{''.join(items)}</ul>")
+                sections.append({"date": d.isoformat(), "total": day_total,
+                                 "report_items": items})
             d += timedelta(days=1)
-        links = _toggle_links("/reports-by-day", start_date=start_date, end_date=end_date, detail=detail, simple=simple)
-        body = (f"<p>{start_date.isoformat()} 〜 {end_date.isoformat()} ({' / '.join(links)})</p>"
-                f"{''.join(sections)}<p><b>合計: {_fmt_time(grand_total)}</b></p>" if sections
-                else "<p>タスクはありません</p>")
-        return _html("日別レポート", body)
-
-    def _aggregate_by_task(tasks):
-        """Aggregate durations by task name (no project grouping)."""
-        totals = {}
-        for t in tasks:
-            secs = (t.end_time - t.start_time).total_seconds()
-            totals[t.name] = totals.get(t.name, 0) + secs
-        return totals
-
-    def _toggle_links(path, date_str=None, start_date=None, end_date=None, detail=False, simple=False):
-        """Build toggle links for detail/simple switching."""
-        base_params = []
-        if date_str:
-            base_params.append(f"date={date_str}")
-        if start_date:
-            base_params.append(f"from={start_date.isoformat()}")
-        if end_date:
-            base_params.append(f"to={end_date.isoformat()}")
-        links = []
-        # detail toggle
-        if not simple:
-            d_params = list(base_params) + ([] if detail else ["detail=1"])
-            d_label = "内訳なし" if detail else "内訳"
-            links.append(f"<a href='{path}?{'&'.join(d_params)}'>{d_label}</a>")
-        # simple toggle
-        s_params = list(base_params)
-        if detail and not simple:
-            s_params.append("detail=1")
-        if simple:
-            links.append(f"<a href='{path}?{'&'.join(s_params)}'>プロジェクトあり</a>")
-        else:
-            s_params.append("simple=1")
-            links.append(f"<a href='{path}?{'&'.join(s_params)}'>プロジェクトなし</a>")
-        return links
-
-    def _report_li(name, secs, task_details=None):
-        line = f"<li>{escape(name)} — {_fmt_time(secs)}"
-        if task_details:
-            sub = "".join(f"<li>{escape(tn)} — {_fmt_time(ts)}</li>"
-                          for tn, ts in sorted(task_details.items()))
-            line += f"<ul>{sub}</ul>"
-        return line + "</li>"
+        links = _toggle_links("/reports-by-day", start_date=start_date, end_date=end_date,
+                              detail=detail, simple=simple)
+        return render_template("reports_by_day.html",
+                               start_date=start_date.isoformat(),
+                               end_date=end_date.isoformat(),
+                               sections=sections, grand=grand_total,
+                               toggle_links=links)
 
     # ── JSON API endpoints ──
 

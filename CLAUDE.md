@@ -13,6 +13,15 @@
 tracker/
 ├── main.py                    # GUI エントリーポイント
 ├── api_server.py              # Flask API サーバー (daemon スレッド、設定で有効化)
+├── templates/
+│   ├── base.html              # 共通スケルトン: CSS(インライン), nav, {% block %}
+│   ├── _report_items.html     # report_li マクロ定義
+│   ├── index.html             # /
+│   ├── tasks.html             # /tasks
+│   ├── projects.html          # /projects
+│   ├── report.html            # /report
+│   ├── reports.html           # /reports
+│   └── reports_by_day.html    # /reports-by-day
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)

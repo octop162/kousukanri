@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{% endblock %} - 工数管理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 720px;
+         margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; line-height: 1.6; }
+  h1 { font-size: 1.4rem; margin-bottom: 1rem; padding-bottom: .5rem;
+       border-bottom: 2px solid #e0e0e0; }
+  h2 { font-size: 1.1rem; margin: 1.2rem 0 .4rem; color: #444; }
+  ul { list-style: none; margin: .5rem 0; }
+  li { padding: .35rem .5rem; border-radius: 4px; }
+  li:nth-child(odd) { background: #f7f7f7; }
+  li ul { margin: .2rem 0 .2rem 1.2rem; }
+  li li { padding: .15rem .5rem; font-size: .9rem; color: #555; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  p { margin: .5rem 0; }
+  b { color: #222; }
+  small { color: #888; }
+  nav { margin-bottom: 1rem; }
+  nav a { margin-right: 1rem; }
+  form { display: inline-flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  input[type=date] { padding: .3rem .4rem; border: 1px solid #ccc; border-radius: 4px; font-size: .9rem; }
+  button { padding: .3rem .8rem; background: #2563eb; color: #fff; border: none;
+           border-radius: 4px; font-size: .9rem; cursor: pointer; }
+  button:hover { background: #1d4ed8; }
+  label { font-size: .9rem; color: #555; }
+  .form-row { margin: .5rem 0; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">トップ</a>
+  <a href="/tasks">タスク</a>
+  <a href="/projects">プロジェクト</a>
+  <a href="/report">レポート</a>
+  <a href="/reports">期間集計</a>
+  <a href="/reports-by-day">日別</a>
+</nav>
+<h1>{% block heading %}{% endblock %}</h1>
+{% block content %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}プロジェクト{% endblock %}
+{% block heading %}プロジェクト{% endblock %}
+{% block content %}
+{% if projects %}
+<ul>
+{% for p in projects %}
+<li><span style="color:{{ p.color }}">&#9632;</span> {{ p.name }}</li>
+{% endfor %}
+</ul>
+{% else %}
+<p>プロジェクトはありません</p>
+{% endif %}
+{% endblock %}

@@ -20,6 +20,15 @@ def _fmt_time(seconds):
     return f"{h}h {m:02d}m"
 
 
+def _aggregate_by_task(tasks):
+    """Aggregate durations by task name (no project grouping)."""
+    totals = {}
+    for t in tasks:
+        secs = (t.end_time - t.start_time).total_seconds()
+        totals[t.name] = totals.get(t.name, 0) + secs
+    return totals
+
+
 def _aggregate_by_project(tasks, proj_map, detail=False):
     """Aggregate task durations by project name.
 

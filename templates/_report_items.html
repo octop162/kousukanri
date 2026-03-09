@@ -1,0 +1,9 @@
+{% macro report_li(name, secs, task_details=None) %}
+<li>{{ name }} — {{ secs|fmt_time }}{% if task_details %}
+<ul>
+{% for tn, ts in task_details|dictsort %}
+<li>{{ tn }} — {{ ts|fmt_time }}</li>
+{% endfor %}
+</ul>
+{% endif %}</li>
+{% endmacro %}

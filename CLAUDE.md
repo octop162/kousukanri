@@ -39,7 +39,7 @@ tracker/
 └── utils/
     ├── constants.py            # 定数・time_to_y / y_to_time 変換
     ├── settings.py             # 設定の読み書き (~/.tracker/ or exe隣/data/、api_server_enabled/api_port)
-    └── theme.py                # テーマ定義・適用 (dark/light/sky/hacker/monokai/solarized)
+    └── theme.py                # テーマ定義・適用 (dark/light/sky/black_green/monokai/solarized)
 ```
 
 ## 設計方針

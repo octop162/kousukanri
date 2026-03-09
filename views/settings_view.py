@@ -70,6 +70,17 @@ class SettingsView(QWidget):
         self._startup_check = QCheckBox("Windows 起動時に自動起動する")
         layout.addRow(self._startup_check)
 
+        self._api_server_check = QCheckBox("API サーバーを有効にする")
+        layout.addRow(self._api_server_check)
+
+        self._api_port_spin = QSpinBox()
+        self._api_port_spin.setRange(1024, 65535)
+        layout.addRow("API ポート:", self._api_port_spin)
+
+        self._api_restart_label = QLabel("※ API サーバー設定は次回起動時に反映されます")
+        self._api_restart_label.setStyleSheet("color: #888; font-size: 11px;")
+        layout.addRow(self._api_restart_label)
+
         self._test_notify_btn = QPushButton("テスト通知")
         self._test_notify_btn.clicked.connect(self._on_test_notify)
         layout.addRow(self._test_notify_btn)
@@ -90,6 +101,8 @@ class SettingsView(QWidget):
                 self._theme_combo.setCurrentIndex(i)
                 break
         self._idle_notify_check.setChecked(s.get("idle_notify", True))
+        self._api_server_check.setChecked(s.get("api_server_enabled", False))
+        self._api_port_spin.setValue(s.get("api_port", 8321))
         self._startup_check.setChecked(is_startup_enabled())
 
     def _on_test_notify(self):
@@ -103,6 +116,8 @@ class SettingsView(QWidget):
             "timeline_end_hour": self._end_hour_spin.value(),
             "theme": self._theme_combo.currentData(),
             "idle_notify": self._idle_notify_check.isChecked(),
+            "api_server_enabled": self._api_server_check.isChecked(),
+            "api_port": self._api_port_spin.value(),
         }
         save_settings(s)
         set_startup(self._startup_check.isChecked())

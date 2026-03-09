@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
                  reports_by_day_view: ReportsByDayView = None,
                  parent=None):
         super().__init__(parent)
-        self.setWindowTitle("KousuKanri")
+        self.setWindowTitle("工数管理")
         icon_path = Path(__file__).parent.parent / "icon.png"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
@@ -114,7 +114,7 @@ class MainWindow(QMainWindow):
         # System tray
         self._tray = QSystemTrayIcon(self)
         self._tray.setIcon(self.windowIcon())
-        self._tray.setToolTip("KousuKanri")
+        self._tray.setToolTip("工数管理")
         tray_menu = QMenu()
         show_action = QAction("表示", self)
         show_action.triggered.connect(self._restore_from_tray)
@@ -162,7 +162,7 @@ class MainWindow(QMainWindow):
 
     def _on_test_notify(self):
         self._tray.showMessage(
-            "KousuKanri",
+            "工数管理",
             "これはテスト通知です。",
             QSystemTrayIcon.MessageIcon.Information,
             5000,
@@ -171,7 +171,7 @@ class MainWindow(QMainWindow):
     def _check_idle(self):
         if self._idle_notify and self._controller and self._controller.is_idle():
             self._tray.showMessage(
-                "KousuKanri",
+                "工数管理",
                 "タスクが記録されていません。計測を始めましょう！",
                 QSystemTrayIcon.MessageIcon.Information,
                 5000,

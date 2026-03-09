@@ -10,12 +10,12 @@ from models.routine import Routine
 
 
 class Database:
-    def __init__(self, db_path: str | Path | None = None):
+    def __init__(self, db_path: str | Path | None = None, check_same_thread: bool = True):
         if db_path is None:
             from utils.settings import DATA_DIR
             DATA_DIR.mkdir(parents=True, exist_ok=True)
             db_path = DATA_DIR / "tracker.db"
-        self._conn = sqlite3.connect(str(db_path))
+        self._conn = sqlite3.connect(str(db_path), check_same_thread=check_same_thread)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._create_tables()
@@ -150,6 +150,17 @@ class Database:
             )
             for r in rows
         ]
+
+    def get_recent_task_names(self, days: int = 30) -> list[tuple[str, str | None]]:
+        """Get distinct (name, project_id) pairs from the last N days, most recent last."""
+        since = (datetime.now() - __import__("datetime").timedelta(days=days)).strftime("%Y-%m-%d")
+        rows = self._conn.execute(
+            "SELECT name, project_id, MAX(start_time) as latest "
+            "FROM tasks WHERE substr(start_time, 1, 10) >= ? "
+            "GROUP BY name, project_id ORDER BY latest",
+            (since,),
+        ).fetchall()
+        return [(r[0], r[1]) for r in rows]
 
     def bulk_update_tasks(self, tasks: list[Task]):
         """Update multiple tasks in a single transaction."""

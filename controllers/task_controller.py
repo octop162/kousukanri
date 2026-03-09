@@ -691,6 +691,25 @@ class TaskController(QObject):
         if deleted is not None:
             self._record_undo("routine_delete", [(deleted, None)])
 
+    # ── Public reload (for API sync) ─────────────────────────
+
+    def reload_current_date(self):
+        """Reload current date data from DB and refresh all views.
+        Called from ApiNotifier.data_changed to sync GUI after API writes.
+        """
+        if self._db is None:
+            return
+        # Clear cache for current date so it reloads from DB
+        self._tasks_by_date.pop(self._current_date, None)
+        self._reload_views_for_date()
+        # Also refresh projects
+        self._projects.clear()
+        for project in self._db.get_all_projects():
+            self._projects[project.id] = project
+        self._sync_projects_to_views()
+        if self._project_list_view is not None:
+            self._project_list_view.set_projects(self._sorted_projects())
+
     # ── DB loading ────────────────────────────────────────────
 
     def load_from_db(self):
@@ -713,8 +732,14 @@ class TaskController(QObject):
             self._scene.add_task_block(task)
             if self._list_view is not None:
                 self._list_view.add_task(task)
-            if self._timer_widget is not None:
-                self._timer_widget.add_task_to_history(task)
+
+        # Load recent task names for completer (past 30 days)
+        if self._timer_widget is not None:
+            from models.task import Task as _T
+            for name, pid in self._db.get_recent_task_names(30):
+                dummy = _T(name=name, start_time=datetime.now(), end_time=datetime.now(),
+                           project_id=pid)
+                self._timer_widget.add_task_to_history(dummy)
 
         # Routines
         self._routines = self._db.get_all_routines()

@@ -1,14 +1,46 @@
 """CLI entry point for tracker — add/list tasks without GUI."""
 
 import argparse
+import io
 import json
 import sys
 from datetime import datetime, date, timedelta
+
+# Windows cp932 環境での文字化け対策: stdout/stderr を UTF-8 に強制
+if sys.stdout.encoding != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if sys.stderr.encoding != "utf-8":
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 from models.database import Database
 from models.task import Task
 from models.project import Project
 from utils.constants import DEFAULT_BLOCK_COLOR
+
+_SERVER_NAME = "kousu-kanri-single-instance"
+
+
+def _notify_gui():
+    """Send 'reload' message to running GUI via QLocalSocket."""
+    try:
+        from PySide6.QtNetwork import QLocalSocket
+        from PySide6.QtWidgets import QApplication
+        # QLocalSocket requires a QCoreApplication
+        app = QApplication.instance()
+        owns_app = False
+        if app is None:
+            from PySide6.QtCore import QCoreApplication
+            app = QCoreApplication([])
+            owns_app = True
+        sock = QLocalSocket()
+        sock.connectToServer(_SERVER_NAME)
+        if sock.waitForConnected(500):
+            sock.write(b"reload")
+            sock.flush()
+            sock.waitForBytesWritten(500)
+            sock.close()
+    except Exception:
+        pass  # GUI が起動していなければ何もしない
 
 
 def cmd_add(args, db: Database):
@@ -48,6 +80,7 @@ def cmd_add(args, db: Database):
     db.insert_task(task)
     proj_str = f"  [{args.project}]" if args.project else ""
     print(f"追加: {args.start} - {args.end}  {args.name}{proj_str}")
+    _notify_gui()
 
 
 def cmd_list(args, db: Database):
@@ -67,11 +100,12 @@ def cmd_list(args, db: Database):
     projects = db.get_all_projects()
     proj_map = {p.id: p.name for p in projects}
 
+    simple = getattr(args, "simple", False)
     tasks.sort(key=lambda t: t.start_time)
     for t in tasks:
         start_str = t.start_time.strftime("%H:%M")
         end_str = t.end_time.strftime("%H:%M")
-        proj_str = f"  [{proj_map[t.project_id]}]" if t.project_id and t.project_id in proj_map else ""
+        proj_str = "" if simple else (f"  [{proj_map[t.project_id]}]" if t.project_id and t.project_id in proj_map else "")
         print(f"{start_str} - {end_str}  {t.name}{proj_str}")
 
 
@@ -86,6 +120,7 @@ def cmd_add_project(args, db: Database):
         project.color = args.color
     db.insert_project(project)
     print(f"プロジェクト追加: {args.name}  ({project.color})")
+    _notify_gui()
 
 
 def _display_width(s):
@@ -377,6 +412,7 @@ def main():
     p_list = sub.add_parser("list", help="タスク一覧")
     p_list.add_argument("--date", help="日付 (YYYY-MM-DD, デフォルト: 今日)")
     p_list.add_argument("--yesterday", action="store_true", help="昨日のタスク一覧")
+    p_list.add_argument("--simple", action="store_true", help="プロジェクト表示を省略")
 
     # add-project
     p_ap = sub.add_parser("add-project", help="プロジェクトを追加")

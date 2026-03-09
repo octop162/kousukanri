@@ -65,7 +65,7 @@ class TaskBlockItem(QGraphicsRectItem):
         painter.setPen(QPen(QColor(self.task.color).darker(250)))
         painter.setFont(self._font)
         text_rect = r.adjusted(8, 4, -4, -4)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft, self.task.name)
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, self.task.name)
 
     # ── hover cursor ──────────────────────────────────────────
 

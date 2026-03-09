@@ -5,6 +5,7 @@
 ## 技術スタック
 - Python + PySide6 (uv で管理)
 - SQLite (Phase 2 - 動作確認済み)
+- Flask (API サーバー、daemon スレッドで動作)
 
 ## プロジェクト構成
 
@@ -12,11 +13,12 @@
 tracker/
 ├── main.py                    # GUI エントリーポイント
 ├── cli.py                     # CLI エントリーポイント (add/list/add-project/list-projects/report/reports/reports-by-day)
+├── api_server.py              # Flask API サーバー (daemon スレッド、設定で有効化)
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)
 │   ├── routine.py             # Routine dataclass (定期タスクプリセット)
-│   └── database.py            # SQLite DAL (WAL, CRUD, ~/.tracker/tracker.db)
+│   └── database.py            # SQLite DAL (WAL, CRUD, ~/.tracker/tracker.db, check_same_thread対応)
 ├── views/
 │   ├── main_window.py         # QMainWindow + QSplitter + システムトレイ常時表示 + 多重起動防止 (1200x1000)
 │   ├── timeline_view.py       # QGraphicsView (起動時 8:00 付近にスクロール)
@@ -31,12 +33,12 @@ tracker/
 │   ├── routine_view.py       # 定期タスク管理 (ルーティン登録・ワンクリック追加)
 │   ├── export_view.py        # 出力タブ (テキストエクスポート・クリップボードコピー)
 │   ├── report_view.py        # レポートタブ (ReportView/ReportsView/ReportsByDayView、JSON出力対応)
-│   └── settings_view.py      # 設定画面 (スナップ・表示範囲・テーマ・通知)
+│   └── settings_view.py      # 設定画面 (スナップ・表示範囲・テーマ・通知・APIサーバー)
 ├── controllers/
-│   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict)
+│   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict、reload_current_date)
 └── utils/
     ├── constants.py            # 定数・time_to_y / y_to_time 変換
-    ├── settings.py             # 設定の読み書き (~/.tracker/ or exe隣/data/)
+    ├── settings.py             # 設定の読み書き (~/.tracker/ or exe隣/data/、api_server_enabled/api_port)
     └── theme.py                # テーマ定義・適用 (dark/light/sky/hacker/monokai/solarized)
 ```
 
@@ -178,6 +180,34 @@ tracker/
 - [x] controller に set_report_view 追加 (ExportView と同タイミングでリアルタイム更新)
 - [x] CLI 全レポートコマンドに --json オプション追加 (report/reports/reports-by-day)
 - [x] cli.py に _format_report_table (テキスト返却) / _totals_to_json_list (JSON変換) を新設
+
+### Phase 2.6: API サーバー（動作確認済み）
+- [x] api_server.py (Flask ベース、daemon スレッド、CORS 対応)
+- [x] ApiNotifier(QObject) で API→GUI リアルタイム同期 (data_changed シグナル)
+- [x] controller に reload_current_date() 追加 (キャッシュクリア + 全View更新)
+- [x] main.py に ApiServer 起動・停止の結線追加
+- [x] settings_view.py に API サーバー有効化・ポート設定 UI
+- [x] models/database.py に check_same_thread パラメータ対応
+- [x] pyproject.toml に flask>=3.0 依存追加
+
+#### API エンドポイント (デフォルト: http://127.0.0.1:8321)
+
+| Method | Path | 説明 |
+|--------|------|------|
+| GET | `/api/health` | ヘルスチェック (`{"status": "ok"}`) |
+| GET | `/api/tasks?date=YYYY-MM-DD` | タスク一覧 (デフォルト: 今日) |
+| POST | `/api/tasks` | タスク追加 (`{name, start, end, date?, project?}`) |
+| GET | `/api/projects` | プロジェクト一覧 |
+| POST | `/api/projects` | プロジェクト追加 (`{name, color?}`) |
+| GET | `/api/report?date=...&detail=1` | 1日レポート |
+| GET | `/api/reports?from=...&to=...&since=...&detail=1` | 期間集計 |
+| GET | `/api/reports-by-day?from=...&to=...&since=...&detail=1` | 日別レポート |
+
+#### スレッド安全性
+- Flask は daemon スレッドで動作 (werkzeug, `use_reloader=False`)
+- 専用 Database インスタンス (`check_same_thread=False`)
+- SQLite WAL モードにより GUI スレッドと安全に並行アクセス
+- POST 成功後に `ApiNotifier.data_changed.emit()` → Qt QueuedConnection でメインスレッドへ
 
 ## 起動方法
 ```

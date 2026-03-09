@@ -80,19 +80,39 @@ def main():
     else:
         window.show()
 
-    # Bring existing window to front when another instance tries to launch
+    # Handle connections from other instances / CLI reload notifications
     def _on_new_connection():
         conn = server.nextPendingConnection()
-        if conn:
-            conn.close()
-        window.showNormal()
-        window.activateWindow()
+        if conn is None:
+            return
+        conn.waitForReadyRead(500)
+        msg = bytes(conn.readAll()).decode("utf-8", errors="ignore")
+        conn.close()
+        if msg == "reload":
+            controller.reload_current_date()
+        else:
+            window.showNormal()
+            window.activateWindow()
 
     server.newConnection.connect(_on_new_connection)
 
     controller.load_from_db()
 
+    # API server (optional, based on settings)
+    api_srv = None
+    if settings.get("api_server_enabled", False):
+        try:
+            from api_server import ApiNotifier, ApiServer
+            api_notifier = ApiNotifier()
+            api_notifier.data_changed.connect(controller.reload_current_date)
+            api_srv = ApiServer(settings.get("api_port", 8321), api_notifier)
+            api_srv.start()
+        except OSError as e:
+            print(f"API server failed to start: {e}", file=sys.stderr)
+
     app.aboutToQuit.connect(controller.stop_running_timer)
+    if api_srv is not None:
+        app.aboutToQuit.connect(api_srv.stop)
     app.aboutToQuit.connect(db.close)
     sys.exit(app.exec())
 

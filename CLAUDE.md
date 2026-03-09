@@ -39,14 +39,12 @@ tracker/
 │   ├── timer_widget.py       # タイマーバー (Phase 1.8)
 │   ├── date_nav_widget.py    # 日付ナビゲーション (◀/今日/▶ + カレンダー)
 │   ├── routine_view.py       # 定期タスク管理 (ルーティン登録・ワンクリック追加)
-│   ├── export_view.py        # 出力タブ (テキストエクスポート・クリップボードコピー)
-│   ├── report_view.py        # レポートタブ (ReportView/ReportsView/ReportsByDayView、JSON出力対応)
 │   └── settings_view.py      # 設定画面 (スナップ・表示範囲・テーマ・通知・APIサーバー)
 ├── controllers/
 │   └── task_controller.py     # View ↔ Model/DB の仲介 (日付別インメモリ dict、reload_current_date)
 └── utils/
     ├── constants.py            # 定数・time_to_y / y_to_time 変換
-    ├── report_helpers.py       # レポート集計・フォーマット関数 (api_server/report_view が利用)
+    ├── report_helpers.py       # レポート集計・フォーマット関数 (api_server が利用)
     ├── settings.py             # 設定の読み書き (~/.tracker/ or exe隣/data/、api_server_enabled/api_port)
     └── theme.py                # テーマ定義・適用 (dark/light/sky/black_green/monokai/solarized)
 ```
@@ -168,14 +166,9 @@ tracker/
 - [x] タスクリストで複数選択 → 右クリック「一括編集」（名前・プロジェクトをまとめて変更）
 - [x] タイマー開始時に表示日が今日でなければ自動で今日に切り替え
 
-### Phase 2.5: GUI レポート・JSON出力（動作確認済み）
-- [x] views/report_view.py 新規作成 (ReportView / ReportsView / ReportsByDayView)
-- [x] ReportView: 1日レポート (リアルタイム更新、内訳チェック、JSONチェック、コピーボタン)
-- [x] ReportsView: 期間集計レポート (QDateEdit×2 + 更新ボタン、DB直接参照)
-- [x] ReportsByDayView: 日別レポート (QDateEdit×2 + 更新ボタン、DB直接参照)
-- [x] main_window.py 下部タブに「レポート」「全レポート」「日毎レポート」追加
-- [x] controller に set_report_view 追加 (ExportView と同タイミングでリアルタイム更新)
+### Phase 2.5: レポート機能（Web に移行済み、GUI タブ削除）
 - [x] utils/report_helpers.py にレポート集計・フォーマット関数を集約
+- [x] API サーバー (HTML/JSON) でレポート提供 → GUI タブは不要のため削除
 
 ### Phase 2.6: API サーバー（動作確認済み）
 - [x] api_server.py (Flask ベース、daemon スレッド、CORS 対応)
@@ -187,12 +180,11 @@ tracker/
 - [x] pyproject.toml に flask>=3.0 依存追加
 - [x] HTML エンドポイント追加 (`/`, `/tasks`, `/projects`, `/report`, `/reports`, `/reports-by-day`)
 - [x] トップページにフォーム付きナビゲーション (日付・内訳・シンプル選択)
-- [x] `simple=1` パラメータでプロジェクト非表示 (API/HTML/GUI チェック)
+- [x] `simple=1` パラメータでプロジェクト非表示 (API/HTML)
 - [x] タスクブロックのテキスト折り返し (TextWordWrap)
 - [x] ウィンドウタイトル・トレイ・通知を「工数管理」に変更
 - [x] タイマー補完候補を過去30日に限定 (get_recent_task_names クエリ)
-- [x] 出力タブに「プロジェクトなし」チェックボックス追加
-- [x] タスクリストに「シンプル表示」チェックボックス追加 (プロジェクト列非表示)
+- [x] GUI の出力・レポート・シンプル表示タブは Web 移行に伴い削除済み
 
 #### JSON API エンドポイント (デフォルト: http://127.0.0.1:8321)
 

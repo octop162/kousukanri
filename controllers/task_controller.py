@@ -44,8 +44,6 @@ class TaskController(QObject):
         self._timer_widget = None
         self._date_nav_widget = None
         self._routine_view = None
-        self._export_view = None
-        self._report_view = None
         self._routines: list[Routine] = []
 
         # 直前の操作1つだけ保持。Undo実行後はNoneになり2回目は無効
@@ -110,36 +108,6 @@ class TaskController(QObject):
         routine_view.routine_changed.connect(self._on_routine_changed)
         routine_view.routine_deleted.connect(self._on_routine_deleted)
         routine_view.routine_order_changed.connect(self._on_routine_order_changed)
-
-    def set_export_view(self, export_view):
-        """Connect an ExportView for text export."""
-        self._export_view = export_view
-        self._refresh_export_view()
-
-    def set_report_view(self, report_view):
-        """Connect a ReportView for daily report."""
-        self._report_view = report_view
-        self._refresh_report_view()
-
-    def _refresh_export_view(self):
-        """Push current tasks and projects to the export view and report view."""
-        if self._export_view is not None:
-            self._export_view.update_tasks(
-                list(self._tasks.values()),
-                self._sorted_projects(),
-                self._current_date,
-            )
-        self._refresh_report_view()
-
-    def _refresh_report_view(self):
-        """Push current tasks and projects to the report view."""
-        if self._report_view is None:
-            return
-        self._report_view.update_tasks(
-            list(self._tasks.values()),
-            self._sorted_projects(),
-            self._current_date,
-        )
 
     # ── Undo ──────────────────────────────────────────────────
 
@@ -303,7 +271,7 @@ class TaskController(QObject):
         if self._routine_view is not None:
             self._routine_view.set_display_date(self._current_date)
 
-        self._refresh_export_view()
+
 
     # ── Timer handlers ─────────────────────────────────────────
 
@@ -427,7 +395,7 @@ class TaskController(QObject):
         if self._timer_widget is not None:
             self._timer_widget.add_task_to_history(task)
         self._record_undo("task_insert", [(None, replace(task))])
-        self._refresh_export_view()
+
 
     # ── signal handlers (from timeline) ────────────────────────
 
@@ -440,7 +408,7 @@ class TaskController(QObject):
         if self._timer_widget is not None:
             self._timer_widget.add_task_to_history(task)
         self._record_undo("task_insert", [(None, replace(task))])
-        self._refresh_export_view()
+
 
     def _on_task_changed(self, task: Task):
         # Sceneから届く task は既に変更済みなので、Undo用にキャッシュから変更前を取得
@@ -452,7 +420,7 @@ class TaskController(QObject):
         if self._list_view is not None:
             self._list_view.update_task(task)
         self._record_undo("task_update", [(old_snapshot, replace(task))])
-        self._refresh_export_view()
+
 
     def _on_task_deleted(self, task_id: str):
         # Guard: if the running task is deleted, stop the timer
@@ -470,7 +438,7 @@ class TaskController(QObject):
             self._db.delete_task(task_id)
         if self._list_view is not None:
             self._list_view.remove_task(task_id)
-        self._refresh_export_view()
+
 
     # ── signal handler (from list view) ────────────────────────
 
@@ -500,7 +468,7 @@ class TaskController(QObject):
         if task.id == self._running_task_id and self._timer_widget is not None:
             self._timer_widget.update_start_time(task.start_time)
         self._record_undo("task_update", [(old_snapshot, replace(task))])
-        self._refresh_export_view()
+
 
     def _on_task_apply_all(self, orig_name: str, orig_project_id: str,
                             new_name: str, new_project_id: str):
@@ -547,7 +515,7 @@ class TaskController(QObject):
                 self._scene.update_task_block(task)
         if self._list_view is not None:
             self._list_view.set_tasks(list(self._tasks.values()))
-        self._refresh_export_view()
+
 
     def _on_tasks_bulk_edited(self, tasks: list):
         snapshots = []
@@ -560,7 +528,7 @@ class TaskController(QObject):
                 self._db.update_task(task)
             snapshots.append((old_snapshot, replace(task)))
         self._record_undo("task_bulk_update", snapshots)
-        self._refresh_export_view()
+
 
     def _on_list_start_requested(self, name: str, project_id: str):
         """Start timer with given name and project from list view."""
@@ -746,4 +714,4 @@ class TaskController(QObject):
         if self._routine_view is not None:
             self._routine_view.set_routines(self._routines)
 
-        self._refresh_export_view()
+

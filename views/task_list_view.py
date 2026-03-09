@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QMenu, QCheckBox,
+    QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem,
+    QHeaderView, QAbstractItemView, QMenu,
 )
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor, QBrush
@@ -24,20 +24,11 @@ class TaskListView(QWidget):
         self._tasks: list[Task] = []
         self._projects: list[Project] = []
         self._timing_task_id: str | None = None
-        self._simple = False
         self._init_ui()
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-
-        toolbar = QHBoxLayout()
-        toolbar.setContentsMargins(4, 2, 4, 2)
-        self._simple_cb = QCheckBox("シンプル表示")
-        self._simple_cb.toggled.connect(self._on_simple_toggled)
-        toolbar.addStretch()
-        toolbar.addWidget(self._simple_cb)
-        layout.addLayout(toolbar)
 
         self._table = QTableWidget(0, 6)
         self._table.setHorizontalHeaderLabels(
@@ -245,10 +236,6 @@ class TaskListView(QWidget):
                 self._tasks.pop(i)
                 self._table.removeRow(i)
                 return
-
-    def _on_simple_toggled(self, checked: bool):
-        self._simple = checked
-        self._table.setColumnHidden(5, checked)
 
     # ── Table helpers ──
 

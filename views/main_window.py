@@ -141,6 +141,12 @@ class MainWindow(QMainWindow):
         self._undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
         self._undo_shortcut.activated.connect(self._on_undo)
 
+        # Ctrl+Y / Ctrl+Shift+Z redo shortcuts
+        self._redo_shortcut = QShortcut(QKeySequence.StandardKey.Redo, self)
+        self._redo_shortcut.activated.connect(self._on_redo)
+        self._redo_shortcut2 = QShortcut(QKeySequence("Ctrl+Y"), self)
+        self._redo_shortcut2.activated.connect(self._on_redo)
+
     def set_controller(self, controller):
         """Set controller for idle check. Call after construction."""
         self._controller = controller
@@ -152,6 +158,10 @@ class MainWindow(QMainWindow):
     def _on_undo(self):
         if self._controller is not None:
             self._controller.undo()
+
+    def _on_redo(self):
+        if self._controller is not None:
+            self._controller.redo()
 
     def _on_settings_changed(self, settings: dict):
         self._idle_notify = settings.get("idle_notify", True)

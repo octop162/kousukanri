@@ -12,7 +12,7 @@ from utils.constants import DEFAULT_BLOCK_COLOR, SNAP_MINUTES
 
 @dc
 class UndoAction:
-    """1レベルUndoのためのスナップショット。
+    """Undo/Redoのためのスナップショット。
     snapshots は (操作前, 操作後) のペアリスト。
     - 挿入: (None, after)  → Undoで削除
     - 更新: (before, after) → Undoでbeforeに戻す
@@ -49,8 +49,9 @@ class TaskController(QObject):
         # タスク名補完用の履歴 (name, project_id) — 最新が末尾
         self._task_history: list[tuple[str, str | None]] = []
 
-        # 直前の操作1つだけ保持。Undo実行後はNoneになり2回目は無効
-        self._last_action: UndoAction | None = None
+        # Undo/Redo スタック
+        self._undo_stack: list[UndoAction] = []
+        self._undo_index: int = -1  # 最後に適用済みのアクションを指す
 
         # タイマー計測中のタスクID。Noneなら計測していない
         self._running_task_id: str | None = None
@@ -132,27 +133,58 @@ class TaskController(QObject):
 
     # ── Undo ──────────────────────────────────────────────────
 
+    _UNDO_LIMIT = 50
+
     def _record_undo(self, kind, snapshots, affected_date=None):
-        self._last_action = UndoAction(kind, snapshots, affected_date)
+        # 途中で新しい操作をしたら、それ以降の redo 履歴を切り捨て
+        self._undo_stack = self._undo_stack[:self._undo_index + 1]
+        self._undo_stack.append(UndoAction(kind, snapshots, affected_date))
+        # 上限キャップ
+        if len(self._undo_stack) > self._UNDO_LIMIT:
+            self._undo_stack = self._undo_stack[-self._UNDO_LIMIT:]
+        self._undo_index = len(self._undo_stack) - 1
 
     def undo(self) -> bool:
-        if self._last_action is None:
+        if self._undo_index < 0:
             return False
         if self._running_task_id is not None:
             return False  # タイマー実行中はundo禁止
 
-        action = self._last_action
-        self._last_action = None
+        action = self._undo_stack[self._undo_index]
+        self._undo_index -= 1
 
         for before, after in action.snapshots:
-            if action.kind.startswith("task_"):
-                self._undo_task(before, after)
-            elif action.kind.startswith("project_"):
-                self._undo_project(before, after)
-            elif action.kind.startswith("routine_"):
-                self._undo_routine(before, after)
+            self._apply_snapshot(action.kind, before, after)
 
-        # ビュー再描画
+        self._refresh_views_after_undo(action)
+        return True
+
+    def redo(self) -> bool:
+        if self._undo_index >= len(self._undo_stack) - 1:
+            return False
+        if self._running_task_id is not None:
+            return False  # タイマー実行中はredo禁止
+
+        self._undo_index += 1
+        action = self._undo_stack[self._undo_index]
+
+        # redo は before/after を逆にして適用
+        for before, after in action.snapshots:
+            self._apply_snapshot(action.kind, after, before)
+
+        self._refresh_views_after_undo(action)
+        return True
+
+    def _apply_snapshot(self, kind, before, after):
+        """Undo 方向にスナップショットを適用する。"""
+        if kind.startswith("task_"):
+            self._undo_task(before, after)
+        elif kind.startswith("project_"):
+            self._undo_project(before, after)
+        elif kind.startswith("routine_"):
+            self._undo_routine(before, after)
+
+    def _refresh_views_after_undo(self, action):
         self._reload_views_for_date()
         if action.kind.startswith("project_"):
             self._sync_projects_to_views()
@@ -161,7 +193,6 @@ class TaskController(QObject):
         if action.kind.startswith("routine_"):
             if self._routine_view:
                 self._routine_view.set_routines(self._routines)
-        return True
 
     def _undo_task(self, before, after):
         """Reverse a single task snapshot: insert→delete, update→revert, delete→re-insert."""

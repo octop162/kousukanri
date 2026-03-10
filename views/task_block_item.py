@@ -219,11 +219,9 @@ class TaskBlockItem(QGraphicsRectItem):
         from views.task_edit_dialog import TaskEditDialog
 
         projects = self._scene._projects if self._scene else []
-        # Build history from existing blocks
         history = []
-        if self._scene:
-            for block in self._scene._get_blocks():
-                history.append((block.task.name, block.task.project_id))
+        if self._scene and self._scene._get_task_history:
+            history = self._scene._get_task_history()
         dlg = TaskEditDialog(
             self.task.name, self.task.project_id,
             self.task.start_time, self.task.end_time,

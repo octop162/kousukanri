@@ -20,6 +20,7 @@ class TimelineScene(QGraphicsScene):
         super().__init__(parent)
         self._reference_date = datetime.now()
         self._projects = []
+        self._get_task_history = None  # callback: () -> list[(name, project_id)]
         self._theme_colors = theme_colors or {}
         self._ruler = TimeRulerItem(theme_colors=self._theme_colors)
         self.addItem(self._ruler)

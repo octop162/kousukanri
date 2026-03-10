@@ -46,6 +46,9 @@ class TaskController(QObject):
         self._routine_view = None
         self._routines: list[Routine] = []
 
+        # タスク名補完用の履歴 (name, project_id) — 最新が末尾
+        self._task_history: list[tuple[str, str | None]] = []
+
         # 直前の操作1つだけ保持。Undo実行後はNoneになり2回目は無効
         self._last_action: UndoAction | None = None
 
@@ -57,6 +60,7 @@ class TaskController(QObject):
         self._tick_timer.setInterval(1000)
         self._tick_timer.timeout.connect(self._on_timer_tick)
 
+        scene._get_task_history = self.get_task_history
         scene.task_created.connect(self._on_task_created)
         scene.task_changed.connect(self._on_task_changed)
         scene.task_deleted.connect(self._on_task_deleted)
@@ -72,9 +76,11 @@ class TaskController(QObject):
     def set_list_view(self, list_view):
         """Connect a TaskListView for bidirectional sync."""
         self._list_view = list_view
+        list_view._get_task_history = self.get_task_history
         list_view.task_edited.connect(self._on_task_edited)
         list_view.tasks_bulk_edited.connect(self._on_tasks_bulk_edited)
         list_view.task_delete_requested.connect(self._on_list_delete_requested)
+        list_view.tasks_bulk_delete_requested.connect(self._on_list_bulk_delete_requested)
         list_view.task_start_requested.connect(self._on_list_start_requested)
         list_view.task_apply_all_requested.connect(self._on_task_apply_all)
 
@@ -103,11 +109,26 @@ class TaskController(QObject):
     def set_routine_view(self, routine_view):
         """Connect a RoutineView for one-click task creation."""
         self._routine_view = routine_view
+        routine_view._get_task_history = self.get_task_history
         routine_view.task_add_requested.connect(self._on_task_add_requested)
         routine_view.routine_created.connect(self._on_routine_created)
         routine_view.routine_changed.connect(self._on_routine_changed)
         routine_view.routine_deleted.connect(self._on_routine_deleted)
         routine_view.routine_order_changed.connect(self._on_routine_order_changed)
+
+    # ── Task history (for completer) ─────────────────────────
+
+    def _add_to_history(self, task: Task):
+        """Add a task to the shared completion history and sync to timer widget."""
+        key = (task.name, task.project_id)
+        self._task_history = [h for h in self._task_history if h != key]
+        self._task_history.append(key)
+        if self._timer_widget is not None:
+            self._timer_widget.set_history(self._task_history)
+
+    def get_task_history(self) -> list[tuple[str, str | None]]:
+        """Return the shared task history for completer use."""
+        return list(self._task_history)
 
     # ── Undo ──────────────────────────────────────────────────
 
@@ -297,8 +318,7 @@ class TaskController(QObject):
         self._scene.add_task_block(task)
         if self._list_view is not None:
             self._list_view.add_task(task, timing=True)
-        if self._timer_widget is not None:
-            self._timer_widget.add_task_to_history(task)
+        self._add_to_history(task)
 
         self._running_task_id = task.id
         if self._db is not None:
@@ -392,8 +412,7 @@ class TaskController(QObject):
             self._db.insert_task(task)
         if self._list_view is not None:
             self._list_view.add_task(task)
-        if self._timer_widget is not None:
-            self._timer_widget.add_task_to_history(task)
+        self._add_to_history(task)
         self._record_undo("task_insert", [(None, replace(task))])
 
 
@@ -405,8 +424,7 @@ class TaskController(QObject):
             self._db.insert_task(task)
         if self._list_view is not None:
             self._list_view.add_task(task)
-        if self._timer_widget is not None:
-            self._timer_widget.add_task_to_history(task)
+        self._add_to_history(task)
         self._record_undo("task_insert", [(None, replace(task))])
 
 
@@ -419,6 +437,7 @@ class TaskController(QObject):
             self._db.update_task(task)
         if self._list_view is not None:
             self._list_view.update_task(task)
+        self._add_to_history(task)
         self._record_undo("task_update", [(old_snapshot, replace(task))])
 
 
@@ -467,6 +486,7 @@ class TaskController(QObject):
         # 計測中タスクの開始時間が変わったらタイマー表示を同期
         if task.id == self._running_task_id and self._timer_widget is not None:
             self._timer_widget.update_start_time(task.start_time)
+        self._add_to_history(task)
         self._record_undo("task_update", [(old_snapshot, replace(task))])
 
 
@@ -550,6 +570,36 @@ class TaskController(QObject):
             if block.task.id == task_id:
                 self._scene.removeItem(block)
                 break
+
+    def _on_list_bulk_delete_requested(self, task_ids: list):
+        """リストビューからの一括削除要求。"""
+        snapshots = []
+        for task_id in task_ids:
+            # Stop timer if running task is being deleted
+            if self._running_task_id == task_id:
+                self._tick_timer.stop()
+                self._running_task_id = None
+                self._running_task_date = None
+                if self._timer_widget is not None:
+                    self._timer_widget.force_stop()
+
+            deleted = self._tasks.pop(task_id, None)
+            if deleted is not None:
+                snapshots.append((replace(deleted), None))
+            if self._db is not None:
+                self._db.delete_task(task_id)
+            # Remove block from scene
+            for block in self._scene._get_blocks():
+                if block.task.id == task_id:
+                    self._scene.removeItem(block)
+                    break
+
+        if snapshots:
+            self._record_undo("task_bulk_update", snapshots)
+
+        # Refresh list view
+        if self._list_view is not None:
+            self._list_view.set_tasks(list(self._tasks.values()))
 
     # ── project signal handlers ────────────────────────────────
 
@@ -702,12 +752,12 @@ class TaskController(QObject):
                 self._list_view.add_task(task)
 
         # Load recent task names for completer (past 30 days)
+        for name, pid in self._db.get_recent_task_names(30):
+            key = (name, pid)
+            self._task_history = [h for h in self._task_history if h != key]
+            self._task_history.append(key)
         if self._timer_widget is not None:
-            from models.task import Task as _T
-            for name, pid in self._db.get_recent_task_names(30):
-                dummy = _T(name=name, start_time=datetime.now(), end_time=datetime.now(),
-                           project_id=pid)
-                self._timer_widget.add_task_to_history(dummy)
+            self._timer_widget.set_history(self._task_history)
 
         # Routines
         self._routines = self._db.get_all_routines()

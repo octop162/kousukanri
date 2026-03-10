@@ -57,6 +57,7 @@ class RoutineView(QWidget):
         self._routines: list[Routine] = []
         self._projects: list[Project] = []
         self._display_date: date = date.today()
+        self._get_task_history = None  # callback: () -> list[(name, project_id)]
         self._init_ui()
 
     # ── UI setup ──
@@ -294,10 +295,11 @@ class RoutineView(QWidget):
         end_time = datetime(d.year, d.month, d.day,
                             routine.end_hour, routine.end_minute)
 
+        history = self._get_task_history() if self._get_task_history else []
         dlg = TaskEditDialog(
             routine.name, routine.project_id,
             start_time, end_time,
-            self._projects, parent=self,
+            self._projects, task_history=history, parent=self,
         )
         dlg.setWindowTitle("ルーティンからタスク追加")
         if dlg.exec() != TaskEditDialog.DialogCode.Accepted:

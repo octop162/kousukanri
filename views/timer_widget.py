@@ -151,6 +151,11 @@ class TimerWidget(QWidget):
         self._history.append(key)
         self._build_completer_items()
 
+    def set_history(self, history: list[tuple[str, str | None]]):
+        """Replace the entire history (called from controller)."""
+        self._history = list(history)
+        self._build_completer_items()
+
     # ── Display date ──
 
     def set_display_date(self, d: date):

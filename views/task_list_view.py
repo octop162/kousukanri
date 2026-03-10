@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QMenu,
+    QHeaderView, QAbstractItemView, QMenu, QMessageBox,
 )
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor, QBrush
@@ -16,6 +16,7 @@ class TaskListView(QWidget):
     task_edited = Signal(Task)
     tasks_bulk_edited = Signal(list)  # list of Task
     task_delete_requested = Signal(str)  # task id
+    tasks_bulk_delete_requested = Signal(list)  # list of task id
     task_start_requested = Signal(str, str)  # (name, project_id)
     task_apply_all_requested = Signal(str, str, str, str)  # (orig_name, orig_project_id, new_name, new_project_id)
 
@@ -24,6 +25,7 @@ class TaskListView(QWidget):
         self._tasks: list[Task] = []
         self._projects: list[Project] = []
         self._timing_task_id: str | None = None
+        self._get_task_history = None  # callback: () -> list[(name, project_id)]
         self._init_ui()
 
     def _init_ui(self):
@@ -76,9 +78,12 @@ class TaskListView(QWidget):
         if len(selected_rows) > 1:
             menu = QMenu(self)
             bulk_edit_action = menu.addAction(f"一括編集（{len(selected_rows)}件）")
+            bulk_delete_action = menu.addAction(f"一括削除（{len(selected_rows)}件）")
             action = menu.exec(self._table.viewport().mapToGlobal(pos))
             if action == bulk_edit_action:
                 self._open_bulk_edit_dialog(selected_rows)
+            elif action == bulk_delete_action:
+                self._bulk_delete(selected_rows)
             return
 
         task = self._tasks[row]
@@ -106,7 +111,7 @@ class TaskListView(QWidget):
         from views.task_edit_dialog import TaskEditDialog
 
         task = self._tasks[row]
-        history = [(t.name, t.project_id) for t in self._tasks]
+        history = self._get_task_history() if self._get_task_history else []
         dlg = TaskEditDialog(
             task.name, task.project_id,
             task.start_time, task.end_time,
@@ -139,7 +144,7 @@ class TaskListView(QWidget):
         task = self._tasks[row]
         orig_name = task.name
         orig_project_id = task.project_id
-        history = [(t.name, t.project_id) for t in self._tasks]
+        history = self._get_task_history() if self._get_task_history else []
         dlg = TaskEditDialog(
             task.name, task.project_id,
             task.start_time, task.end_time,
@@ -196,6 +201,21 @@ class TaskListView(QWidget):
 
         self._rebuild_table()
         self.tasks_bulk_edited.emit(edited_tasks)
+
+    def _bulk_delete(self, rows: list[int]):
+        tasks = [self._tasks[r] for r in rows if r < len(self._tasks)]
+        if not tasks:
+            return
+        reply = QMessageBox.question(
+            self, "一括削除",
+            f"{len(tasks)}件のタスクを削除しますか？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        task_ids = [t.id for t in tasks]
+        self.tasks_bulk_delete_requested.emit(task_ids)
 
     def _find_project(self, project_id: str | None) -> Project | None:
         if project_id is None:

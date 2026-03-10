@@ -1,12 +1,29 @@
 import sys
+import os
 import winreg
+from pathlib import Path
 
 APP_NAME = "KousuKanri"
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
+def get_app_executable_path():
+    # Nuitkaでコンパイルされているかどうかの判定
+    is_nuitka = "__compiled__" in globals()
+
+    if is_nuitka:
+        # ビルド済みEXEとして動いている場合
+        # sys.executable は実行されている .exe のフルパスを指します
+        return os.path.abspath(sys.argv[0])
+    else:
+        # スクリプト(.py)として開発環境で動いている場合
+        # 開発中は python.exe が登録されても良い、あるいは警告を出す
+        return os.path.abspath(__file__)
+
+# スタートアップ登録用の文字列作成
 def _exe_path() -> str:
-    return f'"{sys.executable}" --minimized'
+    exe_path = get_app_executable_path()
+    return f'"{exe_path}" --minimized'
 
 
 def is_startup_enabled() -> bool:

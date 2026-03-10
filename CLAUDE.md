@@ -269,12 +269,23 @@ cd web && npm run build   # → ../static/ に出力
 ```
 
 ### ローカルビルド (Nuitka)
-```
+```powershell
 # 1. Web UI ビルド (static/ に出力)
 cd web && npm run build && cd ..
 
 # 2. GUI ビルド (standalone、PySide6 プラグイン有効、static/ 同梱)
-uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --include-data-dir=static/=static/ --output-dir=dist --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
+$nuitkaArgs = @(
+    "--standalone"
+    "--enable-plugin=pyside6"
+    "--windows-console-mode=disable"
+    "--windows-icon-from-ico=icon.ico"
+    "--include-data-dir=static/=static/"
+    "--output-dir=dist"
+    "--output-filename=kousu-kanri-gui.exe"
+    "--assume-yes-for-downloads"
+    "main.py"
+)
+uv run python -m nuitka @nuitkaArgs
 
 # 成果物: dist/main.dist/kousu-kanri-gui.exe
 ```

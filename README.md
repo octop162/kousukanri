@@ -81,16 +81,23 @@ cd web && npm run dev
 
 [Nuitka](https://nuitka.net/) で Python なしで実行できる exe を生成できる。
 
-```bash
+```powershell
 # 1. Web UI ビルド
 cd web && npm run build && cd ..
 
 # 2. GUI ビルド (standalone、static/ 同梱)
-uv run python -m nuitka --standalone --enable-plugin=pyside6 \
-  --windows-console-mode=disable --windows-icon-from-ico=icon.ico \
-  --include-data-dir=static/=static/ \
-  --output-dir=dist --output-filename=kousu-kanri-gui.exe \
-  --assume-yes-for-downloads main.py
+$nuitkaArgs = @(
+    "--standalone"
+    "--enable-plugin=pyside6"
+    "--windows-console-mode=disable"
+    "--windows-icon-from-ico=icon.ico"
+    "--include-data-dir=static/=static/"
+    "--output-dir=dist"
+    "--output-filename=kousu-kanri-gui.exe"
+    "--assume-yes-for-downloads"
+    "main.py"
+)
+uv run python -m nuitka @nuitkaArgs
 ```
 
 成果物: `dist/main.dist/kousu-kanri-gui.exe`

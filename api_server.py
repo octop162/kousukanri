@@ -43,6 +43,21 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         return response
 
+    # ── API docs ──
+
+    @app.route("/api/docs")
+    def api_docs():
+        return """<!DOCTYPE html>
+<html><head>
+<title>KousuKanri API Docs</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>body{margin:0;padding:0}</style>
+</head><body>
+<redoc spec-url="/openapi.yaml"></redoc>
+<script src="/redoc.standalone.js"></script>
+</body></html>"""
+
     # ── JSON API endpoints ──
 
     @app.route("/api/health")

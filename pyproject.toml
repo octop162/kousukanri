@@ -5,7 +5,18 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "click>=8.0",
     "flask>=3.0",
+    "httpx>=0.23.0",
+    "attrs>=22.2.0",
+    "python-dateutil>=2.8.0",
     "nuitka>=4.0.3",
     "pyside6>=6.10.2",
+    "kousu-kanri-api-client",
 ]
+
+[tool.uv.sources]
+kousu-kanri-api-client = { path = "cli_client", editable = true }
+
+[project.scripts]
+kousu-kanri = "cli:cli"

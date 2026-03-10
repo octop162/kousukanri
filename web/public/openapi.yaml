@@ -1,0 +1,444 @@
+openapi: "3.0.3"
+info:
+  title: KousuKanri API
+  description: 工数管理ツールの JSON API
+  version: "1.0.0"
+servers:
+  - url: http://127.0.0.1:8321
+    description: ローカル開発サーバー
+
+paths:
+  /api/health:
+    get:
+      summary: ヘルスチェック
+      tags: [システム]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/tasks:
+    get:
+      summary: タスク一覧
+      tags: [タスク]
+      parameters:
+        - name: date
+          in: query
+          description: "対象日 (デフォルト: 今日)"
+          schema:
+            type: string
+            format: date
+            example: "2026-03-10"
+        - name: simple
+          in: query
+          description: "1 にするとプロジェクト情報を省略"
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "0"
+      responses:
+        "200":
+          description: タスク配列
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      summary: タスク追加
+      tags: [タスク]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreate"
+      responses:
+        "201":
+          description: 作成されたタスク
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCreated"
+        "400":
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/projects:
+    get:
+      summary: プロジェクト一覧
+      tags: [プロジェクト]
+      responses:
+        "200":
+          description: プロジェクト配列
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      summary: プロジェクト追加
+      tags: [プロジェクト]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: 作成されたプロジェクト
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: プロジェクト名が既に存在する
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/report:
+    get:
+      summary: 日次レポート
+      tags: [レポート]
+      parameters:
+        - name: date
+          in: query
+          description: "対象日 (デフォルト: 今日)"
+          schema:
+            type: string
+            format: date
+            example: "2026-03-10"
+        - name: detail
+          in: query
+          description: "1 にするとタスク内訳を含む"
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "0"
+      responses:
+        "200":
+          description: 日次レポート
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport"
+
+  /api/reports:
+    get:
+      summary: 期間集計レポート
+      tags: [レポート]
+      parameters:
+        - name: from
+          in: query
+          description: 開始日
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: "終了日 (デフォルト: 今日)"
+          schema:
+            type: string
+            format: date
+        - name: since
+          in: query
+          description: "直近N日 (例: 30d)。from より優先"
+          schema:
+            type: string
+            example: "30d"
+        - name: detail
+          in: query
+          description: "1 にするとタスク内訳を含む"
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "0"
+      responses:
+        "200":
+          description: 期間集計レポート
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeriodReport"
+
+  /api/reports-by-day:
+    get:
+      summary: 日別レポート
+      tags: [レポート]
+      parameters:
+        - name: from
+          in: query
+          description: 開始日
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: "終了日 (デフォルト: 今日)"
+          schema:
+            type: string
+            format: date
+        - name: since
+          in: query
+          description: "直近N日 (例: 30d)。from より優先"
+          schema:
+            type: string
+            example: "30d"
+        - name: detail
+          in: query
+          description: "1 にするとタスク内訳を含む"
+          schema:
+            type: string
+            enum: ["0", "1"]
+            default: "0"
+      responses:
+        "200":
+          description: 日別レポート
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport_ByDay"
+
+components:
+  schemas:
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: コーディング
+        start:
+          type: string
+          description: "HH:MM"
+          example: "09:00"
+        end:
+          type: string
+          description: "HH:MM"
+          example: "10:30"
+        date:
+          type: string
+          format: date
+          example: "2026-03-10"
+        color:
+          type: string
+          example: "#4fc3f7"
+        project_id:
+          type: integer
+          nullable: true
+          example: 1
+        project:
+          type: string
+          nullable: true
+          example: 開発
+
+    TaskCreate:
+      type: object
+      required: [name, start, end]
+      properties:
+        name:
+          type: string
+          example: コーディング
+        start:
+          type: string
+          description: "HH:MM"
+          example: "09:00"
+        end:
+          type: string
+          description: "HH:MM"
+          example: "10:30"
+        date:
+          type: string
+          format: date
+          description: "対象日 (デフォルト: 今日)"
+          example: "2026-03-10"
+        project:
+          type: string
+          description: プロジェクト名 (存在するプロジェクトを指定)
+          example: 開発
+
+    TaskCreated:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: コーディング
+        start:
+          type: string
+          example: "09:00"
+        end:
+          type: string
+          example: "10:30"
+        date:
+          type: string
+          format: date
+          example: "2026-03-10"
+        project:
+          type: string
+          nullable: true
+          example: 開発
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 開発
+        color:
+          type: string
+          example: "#4fc3f7"
+        order:
+          type: integer
+          example: 0
+
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: 開発
+        color:
+          type: string
+          description: "色コード (デフォルト: #4fc3f7)"
+          example: "#ff9800"
+
+    ProjectEntry:
+      type: object
+      properties:
+        name:
+          type: string
+          example: 開発
+        seconds:
+          type: number
+          example: 5400
+        formatted:
+          type: string
+          example: "1:30:00"
+        tasks:
+          type: array
+          description: "detail=1 の場合のみ"
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: コーディング
+              seconds:
+                type: number
+                example: 5400
+              formatted:
+                type: string
+                example: "1:30:00"
+
+    DailyReport:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-03-10"
+        total_seconds:
+          type: integer
+          example: 28800
+        total_formatted:
+          type: string
+          example: "8:00:00"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectEntry"
+
+    PeriodReport:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        days:
+          type: integer
+          description: 期間の日数
+        days_with_tasks:
+          type: integer
+          description: タスクが存在する日数
+        total_seconds:
+          type: integer
+        total_formatted:
+          type: string
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectEntry"
+
+    DailyReport_ByDay:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        days:
+          type: integer
+        days_with_tasks:
+          type: integer
+        total_seconds:
+          type: integer
+        total_formatted:
+          type: string
+        daily:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              total_seconds:
+                type: integer
+              total_formatted:
+                type: string
+              projects:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectEntry"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: name, start, end are required

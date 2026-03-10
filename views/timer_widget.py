@@ -10,6 +10,16 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QColor, QI
 from models.project import Project
 from models.task import Task
 
+_ROLE_NAME = Qt.ItemDataRole.UserRole
+_ROLE_PID = Qt.ItemDataRole.UserRole + 1
+
+
+class _TaskCompleter(QCompleter):
+    """QCompleter that shows 'タスク名 — プロジェクト' in popup but inserts only the task name."""
+
+    def pathFromIndex(self, index):
+        return index.data(_ROLE_NAME) or ""
+
 
 class TimerWidget(QWidget):
     """Timer bar: [task name] [project▼] [00:00:00] [+] [▶/■]"""
@@ -49,7 +59,7 @@ class TimerWidget(QWidget):
         # EditRole = "タスク名" (inserted into line edit)
         # UserRole = project_id (for auto-selecting project)
         self._completer_model = QStandardItemModel()
-        self._completer = QCompleter(self._completer_model, self)
+        self._completer = _TaskCompleter(self._completer_model, self)
         self._completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self._completer.setFilterMode(Qt.MatchFlag.MatchContains)
         self._completer.setCompletionRole(Qt.ItemDataRole.DisplayRole)
@@ -107,18 +117,19 @@ class TimerWidget(QWidget):
             seen.add(key)
             proj = self._find_project(pid)
             display = f"{name} — {proj.name}" if proj else name
-            item = QStandardItem()
-            item.setData(display, Qt.ItemDataRole.DisplayRole)
-            item.setData(name, Qt.ItemDataRole.EditRole)
-            item.setData(pid, Qt.ItemDataRole.UserRole)
+            item = QStandardItem(display)
+            if proj:
+                item.setIcon(self._make_color_icon(proj.color))
+            item.setData(name, _ROLE_NAME)
+            item.setData(pid, _ROLE_PID)
             self._completer_model.appendRow(item)
 
     def _on_completer_activated(self, index):
         """When a completer item is selected, fill name and auto-select project."""
         # Get data from the source model via the completer's completion model
         source_index = self._completer.completionModel().mapToSource(index)
-        name = self._completer_model.data(source_index, Qt.ItemDataRole.EditRole)
-        pid = self._completer_model.data(source_index, Qt.ItemDataRole.UserRole)
+        name = self._completer_model.data(source_index, _ROLE_NAME)
+        pid = self._completer_model.data(source_index, _ROLE_PID)
 
         self._name_edit.blockSignals(True)
         self._name_edit.setText(name)

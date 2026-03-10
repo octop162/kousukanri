@@ -11,6 +11,16 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QColor, QI
 
 from models.project import Project
 
+_ROLE_NAME = Qt.ItemDataRole.UserRole
+_ROLE_PID = Qt.ItemDataRole.UserRole + 1
+
+
+class _TaskCompleter(QCompleter):
+    """QCompleter that shows 'タスク名 — プロジェクト' in popup but inserts only the task name."""
+
+    def pathFromIndex(self, index):
+        return index.data(_ROLE_NAME) or ""
+
 
 def parse_time_text(text: str) -> tuple[int, int, int] | None:
     """Parse flexible time formats into (hour, minute, second).
@@ -138,13 +148,14 @@ class TaskEditDialog(QDialog):
                 seen.add(key)
                 proj = self._find_project(hpid)
                 display = f"{hname} — {proj.name}" if proj else hname
-                item = QStandardItem()
-                item.setData(display, Qt.ItemDataRole.DisplayRole)
-                item.setData(hname, Qt.ItemDataRole.EditRole)
-                item.setData(hpid, Qt.ItemDataRole.UserRole)
+                item = QStandardItem(display)
+                if proj:
+                    item.setIcon(_make_color_icon(proj.color))
+                item.setData(hname, _ROLE_NAME)
+                item.setData(hpid, _ROLE_PID)
                 self._completer_model.appendRow(item)
 
-            completer = QCompleter(self._completer_model, self)
+            completer = _TaskCompleter(self._completer_model, self)
             completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
             completer.setFilterMode(Qt.MatchFlag.MatchContains)
             completer.setCompletionRole(Qt.ItemDataRole.DisplayRole)
@@ -217,8 +228,8 @@ class TaskEditDialog(QDialog):
 
     def _on_completer_activated(self, index: QModelIndex):
         source_index = self._name_edit.completer().completionModel().mapToSource(index)
-        name = self._completer_model.data(source_index, Qt.ItemDataRole.EditRole)
-        pid = self._completer_model.data(source_index, Qt.ItemDataRole.UserRole)
+        name = self._completer_model.data(source_index, _ROLE_NAME)
+        pid = self._completer_model.data(source_index, _ROLE_PID)
 
         self._name_edit.blockSignals(True)
         self._name_edit.setText(name)

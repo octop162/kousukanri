@@ -60,6 +60,24 @@ class TaskListView(QWidget):
         self._table.customContextMenuRequested.connect(self._on_context_menu)
         layout.addWidget(self._table)
 
+    # ── Keyboard shortcuts ──
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Delete:
+            self._delete_selected()
+            return
+        super().keyPressEvent(event)
+
+    def _delete_selected(self):
+        selected_rows = sorted(set(idx.row() for idx in self._table.selectedIndexes()))
+        selected_rows = [r for r in selected_rows if 0 <= r < len(self._tasks)]
+        if not selected_rows:
+            return
+        if len(selected_rows) == 1:
+            self.task_delete_requested.emit(self._tasks[selected_rows[0]].id)
+        else:
+            self._bulk_delete(selected_rows)
+
     # ── Cell click (start button) ──
 
     def _on_cell_clicked(self, row: int, col: int):

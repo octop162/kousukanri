@@ -5,15 +5,31 @@ import DateForm from "../components/DateForm";
 import { today } from "../utils";
 
 export default function TasksPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const date = params.get("date") || today();
+  const simple = params.get("simple") === "1";
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setError(null);
-    api.getTasks({ date }).then(setTasks).catch((e: Error) => setError(e.message));
-  }, [date]);
+    api
+      .getTasks({ date, ...(simple ? { simple: "1" } : {}) })
+      .then(setTasks)
+      .catch((e: Error) => setError(e.message));
+  }, [date, simple]);
+
+  const toggleSimple = () => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (simple) {
+        next.delete("simple");
+      } else {
+        next.set("simple", "1");
+      }
+      return next;
+    });
+  };
 
   return (
     <div>
@@ -21,10 +37,19 @@ export default function TasksPage() {
       <DateForm />
       {error && <p className="text-red-600">{error}</p>}
       {tasks.length === 0 && !error && <p className="text-gray-500">タスクなし</p>}
+      <label className="flex items-center gap-1.5 text-sm mb-1 select-none">
+        <input
+          type="checkbox"
+          checked={simple}
+          onChange={toggleSimple}
+        />
+        プロジェクトを非表示
+      </label>
       <ul className="text-sm space-y-0.5">
         {tasks.map((t) => (
           <li key={t.id}>
-            {t.start}–{t.end}　{t.name}{t.project && `　[${t.project}]`}
+            {t.start}–{t.end}　{t.name}
+            {t.project && `　[${t.project}]`}
           </li>
         ))}
       </ul>

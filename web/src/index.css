@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  font-size: 125%;
+}
+
+body {
+  font-family: "Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans", sans-serif;
+}

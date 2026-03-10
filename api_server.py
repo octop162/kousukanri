@@ -6,7 +6,7 @@ import threading
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request, send_from_directory
 from PySide6.QtCore import QObject, Signal
 
 from models.database import Database
@@ -19,56 +19,10 @@ from utils.report_helpers import (
 )
 
 
-def _get_template_dir() -> str:
+def _get_static_dir() -> str:
     if "__compiled__" in globals():
-        return str(Path(sys.executable).parent / "templates")
-    return str(Path(__file__).parent / "templates")
-
-
-def _toggle_links(path, date_str=None, start_date=None, end_date=None,
-                  detail=False, simple=False):
-    """Build toggle links for detail/simple switching.
-
-    Returns list of dicts: [{"href": "...", "label": "..."}, ...]
-    """
-    base_params = []
-    if date_str:
-        base_params.append(f"date={date_str}")
-    if start_date:
-        base_params.append(f"from={start_date.isoformat()}")
-    if end_date:
-        base_params.append(f"to={end_date.isoformat()}")
-    links = []
-    # detail toggle
-    if not simple:
-        d_params = list(base_params) + ([] if detail else ["detail=1"])
-        d_label = "内訳なし" if detail else "内訳"
-        links.append({"href": f"{path}?{'&'.join(d_params)}", "label": d_label})
-    # simple toggle
-    s_params = list(base_params)
-    if detail and not simple:
-        s_params.append("detail=1")
-    if simple:
-        links.append({"href": f"{path}?{'&'.join(s_params)}", "label": "プロジェクトあり"})
-    else:
-        s_params.append("simple=1")
-        links.append({"href": f"{path}?{'&'.join(s_params)}", "label": "プロジェクトなし"})
-    return links
-
-
-def _build_report_items(totals, details, detail):
-    """Build a list of report item dicts for template rendering.
-
-    Returns list of dicts: [{"name": ..., "secs": ..., "details": ...}, ...]
-    """
-    items = []
-    for name in sorted(n for n in totals if n != "(なし)"):
-        items.append({"name": name, "secs": totals[name],
-                       "details": details.get(name) if detail else None})
-    if "(なし)" in totals:
-        items.append({"name": "(なし)", "secs": totals["(なし)"],
-                       "details": details.get("(なし)") if detail else None})
-    return items
+        return str(Path(sys.executable).parent / "static")
+    return str(Path(__file__).parent / "static")
 
 
 class ApiNotifier(QObject):
@@ -78,9 +32,9 @@ class ApiNotifier(QObject):
 
 def create_app(db: Database, notifier: ApiNotifier) -> Flask:
     """Create and configure the Flask application."""
-    app = Flask(__name__, template_folder=_get_template_dir())
+    static_dir = _get_static_dir()
+    app = Flask(__name__, static_folder=static_dir, static_url_path="")
     app.json.ensure_ascii = False
-    app.jinja_env.filters["fmt_time"] = _fmt_time
 
     @app.after_request
     def add_cors_headers(response):
@@ -88,120 +42,6 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         return response
-
-    @app.route("/")
-    def index():
-        today = date.today().isoformat()
-        return render_template("index.html", today=today)
-
-    @app.errorhandler(404)
-    def not_found(e):
-        if request.path.startswith("/api"):
-            return jsonify({"error": "Not found"}), 404
-        return e.get_response()
-
-    # ── HTML endpoints ──
-
-    @app.route("/tasks")
-    def html_tasks():
-        date_str = request.args.get("date", date.today().isoformat())
-        simple = request.args.get("simple", "0") == "1"
-        tasks = db.get_tasks_for_date(date_str)
-        tasks.sort(key=lambda t: t.start_time)
-        proj_map = {p.id: p.name for p in db.get_all_projects()}
-        for t in tasks:
-            t.project_name = (proj_map.get(t.project_id, "") if t.project_id else "")
-        return render_template("tasks.html", date_str=date_str, simple=simple,
-                               tasks=tasks)
-
-    @app.route("/projects")
-    def html_projects():
-        projects = db.get_all_projects()
-        return render_template("projects.html", projects=projects)
-
-    @app.route("/report")
-    def html_report():
-        date_str = request.args.get("date", date.today().isoformat())
-        detail = request.args.get("detail", "0") == "1"
-        simple = request.args.get("simple", "0") == "1"
-        tasks = db.get_tasks_for_date(date_str)
-        proj_map = {p.id: p.name for p in db.get_all_projects()}
-        if simple:
-            totals = _aggregate_by_task(tasks)
-            items = [{"name": n, "secs": s, "details": None}
-                     for n, s in sorted(totals.items())]
-        else:
-            totals, details = _aggregate_by_project(tasks, proj_map, detail=detail)
-            items = _build_report_items(totals, details, detail)
-        grand = sum(totals.values())
-        links = _toggle_links("/report", date_str=date_str, detail=detail, simple=simple)
-        return render_template("report.html", date_str=date_str, items=items,
-                               grand=grand, toggle_links=links)
-
-    @app.route("/reports")
-    def html_reports():
-        detail = request.args.get("detail", "0") == "1"
-        simple = request.args.get("simple", "0") == "1"
-        start_date, end_date = _resolve_date_range()
-        proj_map = {p.id: p.name for p in db.get_all_projects()}
-        totals = {}
-        all_details = {}
-        d = start_date
-        while d <= end_date:
-            tasks = db.get_tasks_for_date(d.isoformat())
-            if tasks:
-                if simple:
-                    day_totals = _aggregate_by_task(tasks)
-                    for n, s in day_totals.items():
-                        totals[n] = totals.get(n, 0) + s
-                else:
-                    day_totals, day_details = _aggregate_by_project(tasks, proj_map, detail=detail)
-                    _merge_aggregates(totals, all_details, day_totals, day_details)
-            d += timedelta(days=1)
-        if simple:
-            items = [{"name": n, "secs": s, "details": None}
-                     for n, s in sorted(totals.items())]
-        else:
-            items = _build_report_items(totals, all_details, detail)
-        grand = sum(totals.values())
-        links = _toggle_links("/reports", start_date=start_date, end_date=end_date,
-                              detail=detail, simple=simple)
-        return render_template("reports.html", start_date=start_date.isoformat(),
-                               end_date=end_date.isoformat(), items=items,
-                               grand=grand, toggle_links=links)
-
-    @app.route("/reports-by-day")
-    def html_reports_by_day():
-        detail = request.args.get("detail", "0") == "1"
-        simple = request.args.get("simple", "0") == "1"
-        start_date, end_date = _resolve_date_range()
-        proj_map = {p.id: p.name for p in db.get_all_projects()}
-        sections = []
-        grand_total = 0
-        d = start_date
-        while d <= end_date:
-            tasks = db.get_tasks_for_date(d.isoformat())
-            if tasks:
-                if simple:
-                    day_totals = _aggregate_by_task(tasks)
-                    day_total = sum(day_totals.values())
-                    items = [{"name": n, "secs": s, "details": None}
-                             for n, s in sorted(day_totals.items())]
-                else:
-                    day_totals, day_details = _aggregate_by_project(tasks, proj_map, detail=detail)
-                    day_total = sum(day_totals.values())
-                    items = _build_report_items(day_totals, day_details, detail)
-                grand_total += day_total
-                sections.append({"date": d.isoformat(), "total": day_total,
-                                 "report_items": items})
-            d += timedelta(days=1)
-        links = _toggle_links("/reports-by-day", start_date=start_date, end_date=end_date,
-                              detail=detail, simple=simple)
-        return render_template("reports_by_day.html",
-                               start_date=start_date.isoformat(),
-                               end_date=end_date.isoformat(),
-                               sections=sections, grand=grand_total,
-                               toggle_links=links)
 
     # ── JSON API endpoints ──
 
@@ -383,6 +223,14 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
             "color": project.color,
             "order": project.order,
         }), 201
+
+    # ── SPA catch-all (must be last) ──
+
+    @app.errorhandler(404)
+    def not_found(e):
+        if request.path.startswith("/api"):
+            return jsonify({"error": "Not found"}), 404
+        return send_from_directory(static_dir, "index.html")
 
     # ── Helpers ──
 

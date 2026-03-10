@@ -6,22 +6,23 @@
 - Python + PySide6 (uv で管理)
 - SQLite (Phase 2 - 動作確認済み)
 - Flask (API サーバー、daemon スレッドで動作)
+- React + TypeScript + Tailwind CSS (Web UI、Vite でビルド → `static/` に出力)
 
 ## プロジェクト構成
 
 ```
 tracker/
 ├── main.py                    # GUI エントリーポイント
-├── api_server.py              # Flask API サーバー (daemon スレッド、設定で有効化)
-├── templates/
-│   ├── base.html              # 共通スケルトン: CSS(インライン), nav, {% block %}
-│   ├── _report_items.html     # report_li マクロ定義
-│   ├── index.html             # /
-│   ├── tasks.html             # /tasks
-│   ├── projects.html          # /projects
-│   ├── report.html            # /report
-│   ├── reports.html           # /reports
-│   └── reports_by_day.html    # /reports-by-day
+├── api_server.py              # Flask API サーバー (daemon スレッド、設定で有効化、SPA 配信)
+├── static/                    # React SPA ビルド成果物 (web/ から生成、gitignore)
+├── web/                       # React フロントエンド (Vite + Tailwind + React Router)
+│   ├── src/
+│   │   ├── api.ts             # API クライアント + 型定義
+│   │   ├── App.tsx            # ルーティング定義
+│   │   ├── utils.ts           # fmtTime, today, thirtyDaysAgo
+│   │   ├── components/        # Layout, ReportList, DateRangeForm
+│   │   └── pages/             # HomePage, TasksPage, ProjectsPage, Report*, ReportsByDay*
+│   └── vite.config.ts         # outDir: ../static, proxy: /api → :8321
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
 │   ├── project.py             # Project dataclass (id, name, color)
@@ -168,7 +169,7 @@ tracker/
 
 ### Phase 2.5: レポート機能（Web に移行済み、GUI タブ削除）
 - [x] utils/report_helpers.py にレポート集計・フォーマット関数を集約
-- [x] API サーバー (HTML/JSON) でレポート提供 → GUI タブは不要のため削除
+- [x] API サーバー (JSON) でレポート提供 → GUI タブは不要のため削除
 
 ### Phase 2.6: API サーバー（動作確認済み）
 - [x] api_server.py (Flask ベース、daemon スレッド、CORS 対応)
@@ -178,13 +179,23 @@ tracker/
 - [x] settings_view.py に API サーバー有効化・ポート設定 UI
 - [x] models/database.py に check_same_thread パラメータ対応
 - [x] pyproject.toml に flask>=3.0 依存追加
-- [x] HTML エンドポイント追加 (`/`, `/tasks`, `/projects`, `/report`, `/reports`, `/reports-by-day`)
-- [x] トップページにフォーム付きナビゲーション (日付・内訳・シンプル選択)
-- [x] `simple=1` パラメータでプロジェクト非表示 (API/HTML)
 - [x] タスクブロックのテキスト折り返し (TextWordWrap)
 - [x] ウィンドウタイトル・トレイ・通知を「工数管理」に変更
 - [x] タイマー補完候補を過去30日に限定 (get_recent_task_names クエリ)
 - [x] GUI の出力・レポート・シンプル表示タブは Web 移行に伴い削除済み
+
+### Phase 2.7: React SPA フロントエンド（動作確認済み）
+- [x] web/ に React + TypeScript + Tailwind + React Router で SPA 構築
+- [x] pages: タスク、プロジェクト、日次レポート、期間集計、日別レポート（`/` は `/tasks` にリダイレクト）
+- [x] api.ts に全 API クライアント + 型定義
+- [x] vite.config.ts: 開発時 proxy /api → :8321、ビルド outDir: ../static
+- [x] api_server.py を SPA 配信サーバーに変更 (Jinja2 → static_folder + send_from_directory)
+- [x] templates/ 削除（不要になったため）
+- [x] .gitignore に web/node_modules/, static/ を追加
+- [x] 共通コンポーネント: DateForm (単一日付 + ◀▶ + 内訳), DateRangeForm (期間 + 内訳)
+- [x] 出力部分は ul/li のシンプルなテキスト表示（コピペしやすい）
+- [x] ライト/ダーク テーマ切替 (ナビ右上トグル、localStorage 保存、OS設定に初回追従)
+- [x] フォント: Noto Sans JP、ベースサイズ 125%
 
 #### JSON API エンドポイント (デフォルト: http://127.0.0.1:8321)
 
@@ -199,16 +210,16 @@ tracker/
 | GET | `/api/reports?from=...&to=...&since=...&detail=1` | 期間集計 |
 | GET | `/api/reports-by-day?from=...&to=...&since=...&detail=1` | 日別レポート |
 
-#### HTML エンドポイント
+#### SPA ルーティング (http://127.0.0.1:8321)
 
 | Path | 説明 |
 |------|------|
-| `/` | トップページ (フォーム付きナビゲーション) |
-| `/tasks?date=...&simple=1` | タスク一覧 (ul/li) |
-| `/projects` | プロジェクト一覧 (色付き) |
-| `/report?date=...&detail=1&simple=1` | 1日レポート |
-| `/reports?from=...&to=...&detail=1&simple=1` | 期間集計 |
-| `/reports-by-day?from=...&to=...&detail=1&simple=1` | 日別レポート |
+| `/` | → `/tasks` にリダイレクト |
+| `/tasks?date=...` | タスク一覧 |
+| `/projects` | プロジェクト一覧 |
+| `/report?date=...&detail=1` | 日次レポート |
+| `/reports?from=...&to=...&detail=1` | 期間集計 |
+| `/reports-by-day?from=...&to=...&detail=1` | 日別レポート |
 
 #### スレッド安全性
 - Flask は daemon スレッドで動作 (werkzeug, threaded=True)
@@ -228,4 +239,18 @@ kousu-kanri-gui.exe
 ### 開発時
 ```
 uv run python main.py
+```
+
+### Web UI 開発 (ホットリロード)
+```
+# 1. GUI 側を起動してAPIサーバーを有効化
+uv run python main.py
+
+# 2. Vite dev server を起動 (/api は :8321 にプロキシ)
+cd web && npm run dev
+```
+
+### Web UI ビルド
+```
+cd web && npm run build   # → ../static/ に出力
 ```

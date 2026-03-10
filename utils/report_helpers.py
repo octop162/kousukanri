@@ -104,7 +104,7 @@ def _totals_to_json_list(totals, details=None):
     entries = []
     for name in sorted_names:
         secs = totals[name]
-        entry = {"project": name, "seconds": int(secs), "formatted": _fmt_time(secs)}
+        entry = {"name": name, "seconds": int(secs), "formatted": _fmt_time(secs)}
         if details and name in details:
             entry["tasks"] = [
                 {"name": tn, "seconds": int(ts), "formatted": _fmt_time(ts)}

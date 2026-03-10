@@ -136,7 +136,6 @@ class MainWindow(QMainWindow):
         self._idle_timer.timeout.connect(self._check_idle)
 
         settings_view.settings_changed.connect(self._on_settings_changed)
-        settings_view.test_notify_requested.connect(self._on_test_notify)
 
         # Ctrl+Z undo shortcut
         self._undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
@@ -160,14 +159,6 @@ class MainWindow(QMainWindow):
             self._idle_timer.start()
         else:
             self._idle_timer.stop()
-
-    def _on_test_notify(self):
-        self._tray.showMessage(
-            "工数管理",
-            "これはテスト通知です。",
-            QSystemTrayIcon.MessageIcon.Information,
-            5000,
-        )
 
     def _check_idle(self):
         if self._idle_notify and self._controller and self._controller.is_idle():

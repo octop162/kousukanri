@@ -10,7 +10,6 @@ from utils.startup import is_startup_enabled, set_startup
 
 class SettingsView(QWidget):
     settings_changed = Signal(dict)  # emitted with full settings dict
-    test_notify_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -81,10 +80,6 @@ class SettingsView(QWidget):
         self._api_restart_label.setStyleSheet("color: #888; font-size: 11px;")
         layout.addRow(self._api_restart_label)
 
-        self._test_notify_btn = QPushButton("テスト通知")
-        self._test_notify_btn.clicked.connect(self._on_test_notify)
-        layout.addRow(self._test_notify_btn)
-
         save_btn = QPushButton("保存")
         save_btn.clicked.connect(self._on_save)
         layout.addRow(save_btn)
@@ -105,8 +100,6 @@ class SettingsView(QWidget):
         self._api_port_spin.setValue(s.get("api_port", 8321))
         self._startup_check.setChecked(is_startup_enabled())
 
-    def _on_test_notify(self):
-        self.test_notify_requested.emit()
 
     def _on_save(self):
         s = {

@@ -2,6 +2,7 @@ from dataclasses import dataclass as dc, replace
 from datetime import datetime, date
 
 from PySide6.QtCore import QObject, QTimer
+from PySide6.QtWidgets import QMessageBox
 
 from models.task import Task
 from models.project import Project
@@ -435,6 +436,7 @@ class TaskController(QObject):
     def _on_task_add_requested(self, task: Task):
         result = self._scene.resolve_overlap(task.start_time, task.end_time)
         if result is None:
+            QMessageBox.information(None, "タスク追加", "指定した時間帯はすでに埋まっています。")
             return
         task.start_time, task.end_time = result
         self._tasks[task.id] = task
@@ -489,21 +491,6 @@ class TaskController(QObject):
         if self._list_view is not None:
             self._list_view.remove_task(task_id)
 
-
-    # ── signal handler (from list view) ────────────────────────
-
-    def _on_list_add_requested(self, task: Task):
-        # Resolve overlaps before adding
-        result = self._scene.resolve_overlap(task.start_time, task.end_time)
-        if result is None:
-            return
-        task.start_time, task.end_time = result
-        self._tasks[task.id] = task
-        self._scene.add_task_block(task)
-        if self._db is not None:
-            self._db.insert_task(task)
-        if self._list_view is not None:
-            self._list_view.add_task(task)
 
     # ── signal handlers (from list view) ────────────────────────
 

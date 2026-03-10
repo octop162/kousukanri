@@ -103,6 +103,7 @@ class MainWindow(QMainWindow):
         else:
             status_label = QLabel("API サーバー: 停止中（設定から有効化）")
             status_label.setStyleSheet("color: gray;")
+        status_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         status_label.setContentsMargins(4, 6, 4, 6)
         right_layout.addWidget(status_label)
 

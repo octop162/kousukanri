@@ -42,13 +42,8 @@ jobs:
         run: |
           uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --include-data-dir=static/=static/ --output-dir=dist --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
 
-      - name: Build CLI
-        run: |
-          uv run python -m nuitka --standalone --windows-console-mode=force --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=kousu-kanri.exe --assume-yes-for-downloads cli.py
-
       - name: Prepare release assets
         run: |
-          Copy-Item -Path dist/cli.dist/* -Destination dist/main.dist/ -Recurse -Force
           New-Item -ItemType Directory -Path dist/main.dist/data -Force
           Compress-Archive -Path dist/main.dist/* -DestinationPath kousukanri-windows.zip
         shell: pwsh

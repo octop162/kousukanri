@@ -15,7 +15,6 @@
 - **システムトレイ** — 常時トレイアイコン表示。最小化/閉じるでトレイに格納、多重起動防止
 - **API サーバー** — Flask ベースの REST API。設定画面で有効化、外部ツールから HTTP 経由で操作可能
 - **Web UI** — React SPA。ブラウザでタスク・プロジェクト・レポートを閲覧・操作
-- **CLI** — コマンドラインからタスク追加・レポート表示 (API サーバー経由)
 - **API ドキュメント** — OpenAPI 3.0 スペック + ReDoc で閲覧可能
 - **データ永続化** — SQLite (`~/.tracker/tracker.db`)
 
@@ -37,33 +36,6 @@ kousu-kanri-gui.exe
 - API ドキュメント: http://127.0.0.1:8321/api/docs
 
 > API 経由でタスクやプロジェクトを追加すると、GUI がリアルタイムで自動更新される（Qt シグナルによるイベント駆動）。
-
-## CLI
-
-API サーバーが起動している状態で使用する。
-
-```bash
-# タスク一覧（今日）
-kousu-kanri tasks
-# 日付指定
-kousu-kanri tasks -d 2026-03-10
-# タスク追加
-kousu-kanri add コーディング 09:00 10:30 -p 開発
-
-# プロジェクト一覧
-kousu-kanri projects
-# プロジェクト追加
-kousu-kanri add-project ミーティング -c "#4CAF50"
-
-# 日次レポート（内訳付き）
-kousu-kanri report --detail
-# 期間集計
-kousu-kanri reports --since 7d
-# 日別レポート
-kousu-kanri reports-by-day -f 2026-03-01 -t 2026-03-10 --detail
-```
-
-共通オプション: `--port PORT` (デフォルト: 8321、環境変数 `KOUSU_PORT`)
 
 ## API
 
@@ -103,9 +75,6 @@ uv run python main.py
 
 # Web UI 開発 (ホットリロード、/api は :8321 にプロキシ)
 cd web && npm run dev
-
-# CLI (開発時)
-uv run python cli.py tasks
 ```
 
 ### ビルド (exe)
@@ -122,29 +91,11 @@ uv run python -m nuitka --standalone --enable-plugin=pyside6 \
   --include-data-dir=static/=static/ \
   --output-dir=dist --output-filename=kousu-kanri-gui.exe \
   --assume-yes-for-downloads main.py
-
-# 3. CLI ビルド (standalone)
-uv run python -m nuitka --standalone \
-  --windows-console-mode=force --windows-icon-from-ico=icon.ico \
-  --output-dir=dist --output-filename=kousu-kanri.exe \
-  --assume-yes-for-downloads cli.py
-
-# 4. CLI を GUI にマージ (共通 DLL を共有)
-cp -r dist/cli.dist/* dist/main.dist/
 ```
 
-成果物: `dist/main.dist/` に `kousu-kanri-gui.exe` と `kousu-kanri.exe` が同居
+成果物: `dist/main.dist/kousu-kanri-gui.exe`
 
 > `v*` タグを push すると GitHub Actions で自動ビルド&リリースされる。
-
-### API クライアント再生成
-
-API を変更した場合、OpenAPI スペックを更新してクライアントを再生成する。
-
-```bash
-# web/public/openapi.yaml を編集後:
-uvx openapi-python-client generate --path web/public/openapi.yaml --output-path cli_client --overwrite
-```
 
 ## アンインストール
 

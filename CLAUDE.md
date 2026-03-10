@@ -7,16 +7,13 @@
 - SQLite (Phase 2 - 動作確認済み)
 - Flask (API サーバー、daemon スレッドで動作)
 - React + TypeScript + Tailwind CSS (Web UI、Vite でビルド → `static/` に出力)
-- CLI: click + 自動生成 API クライアント (openapi-python-client)
 
 ## プロジェクト構成
 
 ```
 tracker/
 ├── main.py                    # GUI エントリーポイント
-├── cli.py                     # CLI エントリーポイント (click + 自動生成クライアント)
 ├── api_server.py              # Flask API サーバー (daemon スレッド、設定で有効化、SPA 配信)
-├── cli_client/                # openapi-python-client で自動生成した API クライアント
 ├── static/                    # React SPA ビルド成果物 (web/ から生成、gitignore)
 
 ├── web/                       # React フロントエンド (Vite + Tailwind + React Router)
@@ -160,8 +157,6 @@ tracker/
 - [x] .github/workflows/build-release.yml (Nuitka standalone ビルド)
 - [x] CI で Web UI ビルド (npm ci + npm run build) → static/ 同梱
 - [x] GUI ビルド: standalone + PySide6 プラグイン + static/ 同梱
-- [x] CLI ビルド: standalone + コンソールモード → kousu-kanri.exe (GUI dist にマージ)
-- [x] GUI + CLI を zip でリリース
 - [x] icon.png / icon.ico (アプリアイコン)
 - [x] Nuitka ビルド時は exe 隣の data/ にデータ配置 (__compiled__ 判定)
 
@@ -245,35 +240,9 @@ tracker/
 - API POST → `ApiNotifier.data_changed` シグナル (同一プロセス、スレッド間)
 - イベント駆動、ポーリングなし
 
-### Phase 2.8: CLI + API ドキュメント（動作確認済み）
+### Phase 2.8: API ドキュメント（動作確認済み）
 - [x] web/public/openapi.yaml (OpenAPI 3.0 スペック、全エンドポイント定義)
 - [x] api_server.py に `/api/docs` エンドポイント追加 (ReDoc、ローカル JS)
-- [x] cli_client/ を openapi-python-client で自動生成 (型付き httpx クライアント)
-- [x] cli.py (click ベース CLI: tasks, add, projects, add-project, report, reports, reports-by-day)
-- [x] pyproject.toml に click/httpx/attrs/python-dateutil 依存追加、cli_client を path dependency
-
-#### CLI コマンド一覧
-
-| コマンド | 説明 | 例 |
-|----------|------|-----|
-| `tasks` | タスク一覧 | `kousu-kanri tasks -d 2026-03-10` |
-| `add` | タスク追加 | `kousu-kanri add コーディング 09:00 10:30 -p 開発` |
-| `projects` | プロジェクト一覧 | `kousu-kanri projects` |
-| `add-project` | プロジェクト追加 | `kousu-kanri add-project 開発 -c "#ff9800"` |
-| `report` | 日次レポート | `kousu-kanri report --detail` |
-| `reports` | 期間集計 | `kousu-kanri reports --since 7d --detail` |
-| `reports-by-day` | 日別レポート | `kousu-kanri reports-by-day -f 2026-03-01 -t 2026-03-10` |
-
-共通オプション: `--port PORT` (デフォルト: 8321、環境変数 `KOUSU_PORT`)
-
-#### API クライアント再生成手順
-API を変更した場合:
-1. `web/public/openapi.yaml` を更新
-2. クライアント再生成:
-   ```
-   uvx openapi-python-client generate --path web/public/openapi.yaml --output-path cli_client --overwrite
-   ```
-3. 新エンドポイント追加時のみ `cli.py` にコマンドを手書き追加
 
 ## 起動方法
 ```
@@ -294,22 +263,9 @@ uv run python main.py
 cd web && npm run dev
 ```
 
-### CLI
-```
-# API サーバーが起動している状態で使用
-uv run python cli.py tasks
-uv run python cli.py report --detail
-uv run python cli.py add コーディング 09:00 10:30 -p 開発
-```
-
 ### Web UI ビルド
 ```
 cd web && npm run build   # → ../static/ に出力
-```
-
-### API クライアント再生成
-```
-uvx openapi-python-client generate --path web/public/openapi.yaml --output-path cli_client --overwrite
 ```
 
 ### ローカルビルド (Nuitka)
@@ -320,11 +276,5 @@ cd web && npm run build && cd ..
 # 2. GUI ビルド (standalone、PySide6 プラグイン有効、static/ 同梱)
 uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --windows-icon-from-ico=icon.ico --include-data-dir=static/=static/ --output-dir=dist --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
 
-# 3. CLI ビルド (standalone、コンソールアプリ)
-uv run python -m nuitka --standalone --windows-console-mode=force --windows-icon-from-ico=icon.ico --output-dir=dist --output-filename=kousu-kanri.exe --assume-yes-for-downloads cli.py
-
-# 4. CLI の成果物を GUI にマージ (共通 DLL は共有)
-cp -r dist/cli.dist/* dist/main.dist/
-
-# 成果物: dist/main.dist/ に kousu-kanri-gui.exe + kousu-kanri.exe が同居
+# 成果物: dist/main.dist/kousu-kanri-gui.exe
 ```

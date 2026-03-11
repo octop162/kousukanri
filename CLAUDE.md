@@ -6,7 +6,7 @@
 - Python + PySide6 (uv で管理)
 - SQLite (Phase 2 - 動作確認済み)
 - Flask (API サーバー、daemon スレッドで動作)
-- React + TypeScript + Tailwind CSS (Web UI、Vite でビルド → `static/` に出力)
+- React + TypeScript + Tailwind CSS + DaisyUI (Web UI、Vite でビルド → `static/` に出力)
 
 ## プロジェクト構成
 
@@ -24,14 +24,14 @@ tracker/
 │   │   ├── api.ts             # API クライアント + 型定義
 │   │   ├── App.tsx            # ルーティング定義
 │   │   ├── utils.ts           # fmtTime, today, thirtyDaysAgo
-│   │   ├── components/        # Layout, ReportList, DateRangeForm
-│   │   └── pages/             # HomePage, TasksPage, ProjectsPage, Report*, ReportsByDay*
+│   │   ├── components/        # Layout, ReportList, DateForm, DateRangeForm
+│   │   └── pages/             # TasksPage, ProjectsPage, ReportDailyPage, ReportTasksPage
 │   └── vite.config.ts         # outDir: ../static, proxy: /api → :8321
 ├── models/
 │   ├── task.py                # Task dataclass (id, name, start_time, end_time, color, project_id)
-│   ├── project.py             # Project dataclass (id, name, color)
+│   ├── project.py             # Project dataclass (id, name, color, archived)
 │   ├── routine.py             # Routine dataclass (定期タスクプリセット)
-│   └── database.py            # SQLite DAL (WAL, CRUD, ~/.tracker/tracker.db, check_same_thread対応)
+│   └── database.py            # SQLite DAL (WAL, CRUD, マイグレーション, ~/.tracker/tracker.db, check_same_thread対応)
 ├── views/
 │   ├── main_window.py         # QMainWindow + QSplitter + システムトレイ常時表示 + 多重起動防止 (1200x1000)
 │   ├── timeline_view.py       # QGraphicsView (起動時 8:00 付近にスクロール)
@@ -173,8 +173,9 @@ tracker/
 - [x] タイマー開始時に表示日が今日でなければ自動で今日に切り替え
 
 ### Phase 2.5: レポート機能（Web に移行済み、GUI タブ削除）
-- [x] utils/report_helpers.py にレポート集計・フォーマット関数を集約
-- [x] API サーバー (JSON) でレポート提供 → GUI タブは不要のため削除
+- [x] utils/report_helpers.py にレポート集計・フォーマット関数を集約 (プロジェクト別・タスク別)
+- [x] API: `/api/report/daily` (日別×プロジェクト), `/api/report/tasks` (期間×タスク)
+- [x] 時間表示: HH:MM 形式に統一
 
 ### Phase 2.6: API サーバー（動作確認済み）
 - [x] api_server.py (Flask ベース、daemon スレッド、CORS 対応)
@@ -191,14 +192,14 @@ tracker/
 
 ### Phase 2.7: React SPA フロントエンド（動作確認済み）
 - [x] web/ に React + TypeScript + Tailwind + React Router で SPA 構築
-- [x] pages: タスク、プロジェクト、日次レポート、期間集計、日別レポート（`/` は `/tasks` にリダイレクト）
+- [x] pages: タスク、プロジェクト、日別レポート、タスク別レポート（`/` は `/tasks` にリダイレクト）
 - [x] api.ts に全 API クライアント + 型定義
 - [x] vite.config.ts: 開発時 proxy /api → :8321、ビルド outDir: ../static
 - [x] api_server.py を SPA 配信サーバーに変更 (Jinja2 → static_folder + send_from_directory)
 - [x] templates/ 削除（不要になったため）
 - [x] .gitignore に web/node_modules/, static/ を追加
-- [x] 共通コンポーネント: DateForm (単一日付 + ◀▶ + 内訳), DateRangeForm (期間 + 内訳)
-- [x] 出力部分は ul/li のシンプルなテキスト表示（コピペしやすい）
+- [x] 共通コンポーネント: DateForm (単一日付 + ◀▶), DateRangeForm (期間)
+- [x] 出力部分はテーブルレイアウト（時間列の縦位置揃え）
 - [x] ライト/ダーク テーマ切替 (ナビ右上トグル、localStorage 保存、OS設定に初回追従)
 - [x] フォント: Noto Sans JP、ベースサイズ 125%
 
@@ -209,11 +210,11 @@ tracker/
 | GET | `/api/health` | ヘルスチェック (`{"status": "ok"}`) |
 | GET | `/api/tasks?date=YYYY-MM-DD&simple=1` | タスク一覧 (デフォルト: 今日) |
 | POST | `/api/tasks` | タスク追加 (`{name, start, end, date?, project?}`) |
-| GET | `/api/projects` | プロジェクト一覧 |
+| GET | `/api/projects` | プロジェクト一覧 (archived フィールド含む) |
 | POST | `/api/projects` | プロジェクト追加 (`{name, color?}`) |
-| GET | `/api/report?date=...&detail=1` | 1日レポート |
-| GET | `/api/reports?from=...&to=...&since=...&detail=1` | 期間集計 |
-| GET | `/api/reports-by-day?from=...&to=...&since=...&detail=1` | 日別レポート |
+| PATCH | `/api/projects/<id>/archive` | プロジェクトアーカイブ/解除 (`{archived}`) |
+| GET | `/api/report/daily?from=...&to=...` | 日別×プロジェクト別工数レポート |
+| GET | `/api/report/tasks?from=...&to=...` | 期間全体×タスク別工数レポート |
 
 #### SPA ルーティング (http://127.0.0.1:8321)
 
@@ -221,10 +222,9 @@ tracker/
 |------|------|
 | `/` | → `/tasks` にリダイレクト |
 | `/tasks?date=...` | タスク一覧 |
-| `/projects` | プロジェクト一覧 |
-| `/report?date=...&detail=1` | 日次レポート |
-| `/reports?from=...&to=...&detail=1` | 期間集計 |
-| `/reports-by-day?from=...&to=...&detail=1` | 日別レポート |
+| `/projects` | プロジェクト一覧 (アーカイブ管理) |
+| `/report/daily?from=...&to=...` | 日別レポート |
+| `/report/tasks?from=...&to=...` | タスク別レポート |
 
 #### スレッド安全性
 - Flask は daemon スレッドで動作 (werkzeug, threaded=True)

@@ -19,6 +19,7 @@ class Database:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._create_tables()
+        self._migrate()
 
     def _create_tables(self):
         self._conn.executescript("""
@@ -56,19 +57,26 @@ class Database:
         """)
         self._conn.commit()
 
+    def _migrate(self):
+        """Run schema migrations (add columns that don't exist yet)."""
+        cols = {row[1] for row in self._conn.execute("PRAGMA table_info(projects)").fetchall()}
+        if "archived" not in cols:
+            self._conn.execute("ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
+            self._conn.commit()
+
     # ── Project CRUD ──
 
     def insert_project(self, project: Project):
         self._conn.execute(
-            'INSERT OR REPLACE INTO projects (id, name, color, "order") VALUES (?, ?, ?, ?)',
-            (project.id, project.name, project.color, project.order),
+            'INSERT OR REPLACE INTO projects (id, name, color, "order", archived) VALUES (?, ?, ?, ?, ?)',
+            (project.id, project.name, project.color, project.order, int(project.archived)),
         )
         self._conn.commit()
 
     def update_project(self, project: Project):
         self._conn.execute(
-            'UPDATE projects SET name=?, color=?, "order"=? WHERE id=?',
-            (project.name, project.color, project.order, project.id),
+            'UPDATE projects SET name=?, color=?, "order"=?, archived=? WHERE id=?',
+            (project.name, project.color, project.order, int(project.archived), project.id),
         )
         self._conn.commit()
 
@@ -78,12 +86,19 @@ class Database:
 
     def get_all_projects(self) -> list[Project]:
         rows = self._conn.execute(
-            'SELECT id, name, color, "order" FROM projects ORDER BY "order"'
+            'SELECT id, name, color, "order", archived FROM projects ORDER BY "order"'
         ).fetchall()
         return [
-            Project(id=r[0], name=r[1], color=r[2], order=r[3])
+            Project(id=r[0], name=r[1], color=r[2], order=r[3], archived=bool(r[4]))
             for r in rows
         ]
+
+    def archive_project(self, project_id: str, archived: bool = True):
+        self._conn.execute(
+            "UPDATE projects SET archived=? WHERE id=?",
+            (int(archived), project_id),
+        )
+        self._conn.commit()
 
     # ── Task CRUD ──
 

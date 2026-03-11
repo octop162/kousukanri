@@ -292,11 +292,13 @@ class TaskEditDialog(QDialog):
 
 
 class ProjectEditDialog(QDialog):
-    """Dialog for editing a project's name and color, with optional delete."""
+    """Dialog for editing a project's name and color, with optional delete/archive."""
 
-    def __init__(self, name: str, color: str, allow_delete: bool = False, parent=None):
+    def __init__(self, name: str, color: str, allow_delete: bool = False,
+                 allow_archive: bool = False, parent=None):
         super().__init__(parent)
         self._deleted = False
+        self._archived = False
         self.setWindowTitle("プロジェクト編集")
         self.setMinimumWidth(280)
 
@@ -318,6 +320,11 @@ class ProjectEditDialog(QDialog):
             delete_btn.setStyleSheet("color: #E74C3C;")
             delete_btn.clicked.connect(self._on_delete)
             btn_layout.addWidget(delete_btn)
+        if allow_archive:
+            archive_btn = QPushButton("アーカイブ")
+            archive_btn.setStyleSheet("color: #888;")
+            archive_btn.clicked.connect(self._on_archive)
+            btn_layout.addWidget(archive_btn)
         btn_layout.addStretch()
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -343,6 +350,10 @@ class ProjectEditDialog(QDialog):
     def deleted(self) -> bool:
         return self._deleted
 
+    @property
+    def archived(self) -> bool:
+        return self._archived
+
     def _on_delete(self):
         reply = QMessageBox.question(
             self, "確認", "このプロジェクトを削除しますか？",
@@ -350,6 +361,15 @@ class ProjectEditDialog(QDialog):
         )
         if reply == QMessageBox.StandardButton.Yes:
             self._deleted = True
+            self.accept()
+
+    def _on_archive(self):
+        reply = QMessageBox.question(
+            self, "確認", "このプロジェクトをアーカイブしますか？\n（Web UIから復元できます）",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._archived = True
             self.accept()
 
     def get_result(self) -> dict | None:

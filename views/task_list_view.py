@@ -23,7 +23,8 @@ class TaskListView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._tasks: list[Task] = []
-        self._projects: list[Project] = []
+        self._projects: list[Project] = []       # active only (for edit dialogs)
+        self._all_projects: list[Project] = []   # including archived (for display)
         self._timing_task_id: str | None = None
         self._get_task_history = None  # callback: () -> list[(name, project_id)]
         self._init_ui()
@@ -236,17 +237,21 @@ class TaskListView(QWidget):
         self.tasks_bulk_delete_requested.emit(task_ids)
 
     def _find_project(self, project_id: str | None) -> Project | None:
+        """Find project by ID from all projects (including archived) for display."""
         if project_id is None:
             return None
-        for p in self._projects:
+        for p in self._all_projects:
             if p.id == project_id:
                 return p
         return None
 
     # ── Public update methods (called by controller) ──
 
-    def update_project_list(self, projects: list[Project]):
+    def update_project_list(self, projects: list[Project], all_projects: list[Project] | None = None):
+        """Update project lists. `projects` = active only (for edit dialogs),
+        `all_projects` = including archived (for name display)."""
         self._projects = projects
+        self._all_projects = all_projects if all_projects is not None else projects
 
     def set_tasks(self, tasks: list[Task]):
         """Replace the entire task list (used on date change)."""

@@ -39,7 +39,7 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
     @app.after_request
     def add_cors_headers(response):
         response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         return response
 
@@ -91,7 +91,7 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
     def get_projects():
         projects = db.get_all_projects()
         result = [
-            {"id": p.id, "name": p.name, "color": p.color, "order": p.order}
+            {"id": p.id, "name": p.name, "color": p.color, "order": p.order, "archived": p.archived}
             for p in projects
         ]
         return jsonify(result)
@@ -238,6 +238,17 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
             "color": project.color,
             "order": project.order,
         }), 201
+
+    @app.route("/api/projects/<project_id>/archive", methods=["PATCH"])
+    def patch_project_archive(project_id):
+        body = request.get_json(force=True)
+        archived = body.get("archived", True)
+        projects = db.get_all_projects()
+        if not any(p.id == project_id for p in projects):
+            return jsonify({"error": "project not found"}), 404
+        db.archive_project(project_id, archived)
+        notifier.data_changed.emit()
+        return jsonify({"id": project_id, "archived": archived})
 
     # ── SPA catch-all (must be last) ──
 

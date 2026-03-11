@@ -93,6 +93,7 @@ class TaskController(QObject):
         project_list_view.project_changed.connect(self._on_project_changed)
         project_list_view.project_deleted.connect(self._on_project_deleted)
         project_list_view.project_order_changed.connect(self._on_project_order_changed)
+        project_list_view.project_archived.connect(self._on_project_archived)
 
     def set_timer_widget(self, timer_widget):
         """Connect a TimerWidget for start/stop timer."""
@@ -190,7 +191,7 @@ class TaskController(QObject):
         if action.kind.startswith("project_"):
             self._sync_projects_to_views()
             if self._project_list_view:
-                self._project_list_view.set_projects(self._sorted_projects())
+                self._project_list_view.set_projects(self._active_projects())
         if action.kind.startswith("routine_"):
             if self._routine_view:
                 self._routine_view.set_routines(self._routines)
@@ -624,16 +625,24 @@ class TaskController(QObject):
     def _sorted_projects(self) -> list[Project]:
         return sorted(self._projects.values(), key=lambda p: p.order)
 
+    def _active_projects(self) -> list[Project]:
+        """Return sorted projects excluding archived ones (for dropdowns)."""
+        return [p for p in self._sorted_projects() if not p.archived]
+
     def _sync_projects_to_views(self):
-        """Push current project list to all views that need it."""
-        projects = self._sorted_projects()
-        self._scene.set_projects(projects)
+        """Push current project list to all views that need it.
+        Scene/timer/routine get active-only (for dropdowns).
+        List view gets both all (for name display) and active (for edit dialogs).
+        """
+        active = self._active_projects()
+        all_sorted = self._sorted_projects()
+        self._scene.set_projects(active)
         if self._list_view is not None:
-            self._list_view.update_project_list(projects)
+            self._list_view.update_project_list(active, all_sorted)
         if self._timer_widget is not None:
-            self._timer_widget.update_project_list(projects)
+            self._timer_widget.update_project_list(active)
         if self._routine_view is not None:
-            self._routine_view.update_project_list(projects)
+            self._routine_view.update_project_list(active)
 
     def _on_project_created(self, project: Project):
         self._projects[project.id] = project
@@ -691,6 +700,19 @@ class TaskController(QObject):
         if deleted is not None:
             self._record_undo("project_delete", [(replace(deleted), None)])
 
+    def _on_project_archived(self, project_id: str):
+        project = self._projects.get(project_id)
+        if project is None:
+            return
+        old_snapshot = replace(project)
+        project.archived = True
+        if self._db is not None:
+            self._db.archive_project(project_id, True)
+        if self._project_list_view is not None:
+            self._project_list_view.remove_project(project_id)
+        self._sync_projects_to_views()
+        self._record_undo("project_update", [(old_snapshot, replace(project))])
+
     # ── routine signal handlers ────────────────────────────────
 
     def _on_routine_created(self, routine: Routine):
@@ -744,7 +766,7 @@ class TaskController(QObject):
             self._projects[project.id] = project
         self._sync_projects_to_views()
         if self._project_list_view is not None:
-            self._project_list_view.set_projects(self._sorted_projects())
+            self._project_list_view.set_projects(self._active_projects())
 
     # ── DB loading ────────────────────────────────────────────
 
@@ -758,7 +780,7 @@ class TaskController(QObject):
             self._projects[project.id] = project
         self._sync_projects_to_views()
         if self._project_list_view is not None:
-            for project in self._sorted_projects():
+            for project in self._active_projects():
                 self._project_list_view.add_project(project)
 
         # Tasks for current date

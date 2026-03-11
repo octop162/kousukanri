@@ -50,6 +50,7 @@ class ProjectListView(QWidget):
     project_changed = Signal(Project)
     project_deleted = Signal(str)
     project_order_changed = Signal(list)  # list[Project] in new order
+    project_archived = Signal(str)  # project_id
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -124,11 +125,14 @@ class ProjectListView(QWidget):
         project = self._projects[row]
 
         from views.task_edit_dialog import ProjectEditDialog
-        dlg = ProjectEditDialog(project.name, project.color, allow_delete=True, parent=self)
+        dlg = ProjectEditDialog(project.name, project.color, allow_delete=True, allow_archive=True, parent=self)
         if dlg.exec() != ProjectEditDialog.DialogCode.Accepted:
             return
         if dlg.deleted:
             self.project_deleted.emit(project.id)
+            return
+        if dlg.archived:
+            self.project_archived.emit(project.id)
             return
         result = dlg.get_result()
         if result is None:

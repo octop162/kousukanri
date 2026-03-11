@@ -14,6 +14,7 @@ export interface Project {
   name: string;
   color: string;
   order: number;
+  archived: boolean;
 }
 
 export interface ReportProject {
@@ -79,6 +80,16 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(BASE + path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   getTasks: (params?: { date?: string; simple?: string }) =>
     get<Task[]>("/api/tasks", params as Record<string, string>),
@@ -90,6 +101,9 @@ export const api = {
 
   postProject: (body: { name: string; color?: string }) =>
     post<Project>("/api/projects", body),
+
+  archiveProject: (id: number, archived: boolean) =>
+    patch<{ id: number; archived: boolean }>(`/api/projects/${id}/archive`, { archived }),
 
   getReport: (params?: { date?: string; detail?: string }) =>
     get<Report>("/api/report", params as Record<string, string>),

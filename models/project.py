@@ -11,3 +11,4 @@ class Project:
     color: str = field(default_factory=lambda: random.choice(DEFAULT_BLOCK_COLORS))
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     order: int = 0
+    archived: bool = False

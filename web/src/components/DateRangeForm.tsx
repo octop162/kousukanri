@@ -21,17 +21,15 @@ export default function DateRangeForm() {
   }
 
   return (
-    <form onSubmit={apply} className="flex flex-wrap gap-3 items-center mb-4 text-sm">
-      <input type="date" name="from" defaultValue={from} className="border rounded px-2 py-1" />
+    <form onSubmit={apply} className="flex flex-wrap gap-2 items-center mb-4">
+      <input type="date" name="from" defaultValue={from} className="input input-sm input-bordered" />
       <span>～</span>
-      <input type="date" name="to" defaultValue={to} className="border rounded px-2 py-1" />
-      <label className="flex items-center gap-1">
-        <input type="checkbox" name="detail" defaultChecked={detail} />
-        内訳
+      <input type="date" name="to" defaultValue={to} className="input input-sm input-bordered" />
+      <label className="label cursor-pointer gap-1">
+        <input type="checkbox" name="detail" defaultChecked={detail} className="checkbox checkbox-sm" />
+        <span>内訳</span>
       </label>
-      <button type="submit" className="bg-gray-700 text-white px-3 py-1 rounded hover:bg-gray-600">
-        表示
-      </button>
+      <button type="submit" className="btn btn-sm btn-neutral">表示</button>
     </form>
   );
 }

@@ -35,16 +35,17 @@ export default function TasksPage() {
     <div>
       <h1 className="text-xl font-bold mb-3">タスク一覧</h1>
       <DateForm />
-      {error && <p className="text-red-600">{error}</p>}
-      {tasks.length === 0 && !error && <p className="text-gray-500">タスクなし</p>}
-      <label className="flex items-center gap-1.5 text-sm mb-1 select-none">
+      {error && <p className="text-error">{error}</p>}
+      <label className="label cursor-pointer justify-start gap-1.5 text-sm mb-1">
         <input
           type="checkbox"
           checked={simple}
           onChange={toggleSimple}
+          className="checkbox checkbox-sm"
         />
-        プロジェクトを非表示
+        <span>プロジェクトを非表示</span>
       </label>
+      {tasks.length === 0 && !error && <p className="opacity-50">タスクなし</p>}
       <ul className="text-sm space-y-0.5">
         {tasks.map((t) => (
           <li key={t.id}>

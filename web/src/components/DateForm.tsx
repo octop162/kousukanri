@@ -33,19 +33,19 @@ export default function DateForm({ showDetail }: Props) {
   }
 
   return (
-    <div className="flex flex-wrap gap-3 items-center mb-4">
-      <button onClick={() => changeDate(shiftDate(date, -1))} className="px-2 py-1 border rounded hover:opacity-80">◀</button>
+    <div className="flex flex-wrap gap-2 items-center mb-4">
+      <button onClick={() => changeDate(shiftDate(date, -1))} className="btn btn-sm btn-ghost">◀</button>
       <input
         type="date"
         value={date}
         onChange={(e) => changeDate(e.target.value)}
-        className="border rounded px-2 py-1"
+        className="input input-sm input-bordered"
       />
-      <button onClick={() => changeDate(shiftDate(date, 1))} className="px-2 py-1 border rounded hover:opacity-80">▶</button>
+      <button onClick={() => changeDate(shiftDate(date, 1))} className="btn btn-sm btn-ghost">▶</button>
       {showDetail && (
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={detail} onChange={toggleDetail} />
-          内訳
+        <label className="label cursor-pointer gap-1">
+          <input type="checkbox" checked={detail} onChange={toggleDetail} className="checkbox checkbox-sm" />
+          <span>内訳</span>
         </label>
       )}
     </div>

@@ -4,7 +4,6 @@ import { api, type Report } from "../api";
 import ReportList from "../components/ReportList";
 import DateForm from "../components/DateForm";
 import { today } from "../utils";
-
 export default function ReportPage() {
   const [params] = useSearchParams();
   const date = params.get("date") || today();
@@ -24,7 +23,7 @@ export default function ReportPage() {
     <div>
       <h1 className="text-xl font-bold mb-3">日次レポート</h1>
       <DateForm showDetail />
-      {error && <p className="text-red-600">{error}</p>}
+      {error && <p className="text-error">{error}</p>}
       {report && (
         <ReportList projects={report.projects} grandTotal={report.total_seconds} />
       )}

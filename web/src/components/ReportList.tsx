@@ -9,14 +9,14 @@ interface Props {
 export default function ReportList({ projects, grandTotal }: Props) {
   return (
     <div className="text-sm">
-      <table className="border-collapse">
+      <table className="border-collapse w-full max-w-md">
         <tbody>
           {projects.map((proj) => (
             <tr key={proj.name}>
               <td className="py-0.5 pr-2 align-top whitespace-nowrap">
                 {proj.name}
               </td>
-              <td className="py-0.5 align-top whitespace-nowrap text-right tabular-nums">
+              <td className="py-0.5 align-top whitespace-nowrap text-right tabular-nums w-24">
                 {fmtTime(proj.seconds)}
               </td>
             </tr>
@@ -25,7 +25,7 @@ export default function ReportList({ projects, grandTotal }: Props) {
         <tfoot>
           <tr className="border-t border-base-300 font-semibold">
             <td className="pt-1.5">合計</td>
-            <td className="pt-1.5 text-right tabular-nums">{fmtTime(grandTotal)}</td>
+            <td className="pt-1.5 text-right tabular-nums w-24">{fmtTime(grandTotal)}</td>
           </tr>
         </tfoot>
       </table>

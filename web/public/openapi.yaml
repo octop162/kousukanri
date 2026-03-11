@@ -129,13 +129,6 @@ paths:
             type: string
             format: date
             example: "2026-03-10"
-        - name: detail
-          in: query
-          description: "1 にするとタスク内訳を含む"
-          schema:
-            type: string
-            enum: ["0", "1"]
-            default: "0"
       responses:
         "200":
           description: 日次レポート
@@ -167,13 +160,6 @@ paths:
           schema:
             type: string
             example: "30d"
-        - name: detail
-          in: query
-          description: "1 にするとタスク内訳を含む"
-          schema:
-            type: string
-            enum: ["0", "1"]
-            default: "0"
       responses:
         "200":
           description: 期間集計レポート
@@ -205,13 +191,6 @@ paths:
           schema:
             type: string
             example: "30d"
-        - name: detail
-          in: query
-          description: "1 にするとタスク内訳を含む"
-          schema:
-            type: string
-            enum: ["0", "1"]
-            default: "0"
       responses:
         "200":
           description: 日別レポート
@@ -344,21 +323,6 @@ components:
         formatted:
           type: string
           example: "1:30:00"
-        tasks:
-          type: array
-          description: "detail=1 の場合のみ"
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-                example: コーディング
-              seconds:
-                type: number
-                example: 5400
-              formatted:
-                type: string
-                example: "1:30:00"
 
     DailyReport:
       type: object

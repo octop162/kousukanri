@@ -29,30 +29,6 @@ export default function ReportList({ projects, grandTotal }: Props) {
           </tr>
         </tfoot>
       </table>
-
-      {projects.some((p) => p.tasks && p.tasks.length > 0) && (
-        <div className="mt-3 space-y-2">
-          {projects
-            .filter((p) => p.tasks && p.tasks.length > 0)
-            .map((proj) => (
-              <div key={proj.name}>
-                <p className="font-medium text-xs opacity-60 mb-0.5">{proj.name}</p>
-                <table className="border-collapse ml-3">
-                  <tbody>
-                    {proj.tasks!.map((t) => (
-                      <tr key={t.name}>
-                        <td className="py-px pr-2 whitespace-nowrap">{t.name}</td>
-                        <td className="py-px whitespace-nowrap text-right tabular-nums">
-                          {fmtTime(t.seconds)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -21,7 +21,6 @@ export interface ReportProject {
   name: string;
   seconds: number;
   formatted: string;
-  tasks?: { name: string; seconds: number; formatted: string }[];
 }
 
 export interface Report {
@@ -105,12 +104,12 @@ export const api = {
   archiveProject: (id: number, archived: boolean) =>
     patch<{ id: number; archived: boolean }>(`/api/projects/${id}/archive`, { archived }),
 
-  getReport: (params?: { date?: string; detail?: string }) =>
+  getReport: (params?: { date?: string }) =>
     get<Report>("/api/report", params as Record<string, string>),
 
-  getReports: (params?: { from?: string; to?: string; since?: string; detail?: string }) =>
+  getReports: (params?: { from?: string; to?: string; since?: string }) =>
     get<Reports>("/api/reports", params as Record<string, string>),
 
-  getReportsByDay: (params?: { from?: string; to?: string; since?: string; detail?: string }) =>
+  getReportsByDay: (params?: { from?: string; to?: string; since?: string }) =>
     get<ReportsByDay>("/api/reports-by-day", params as Record<string, string>),
 };

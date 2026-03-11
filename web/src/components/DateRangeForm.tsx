@@ -6,7 +6,6 @@ export default function DateRangeForm() {
 
   const from = params.get("from") || thirtyDaysAgo();
   const to = params.get("to") || today();
-  const detail = params.get("detail") === "1";
 
   function apply(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -16,7 +15,6 @@ export default function DateRangeForm() {
     const t = fd.get("to") as string;
     if (f) next.set("from", f);
     if (t) next.set("to", t);
-    if (fd.get("detail")) next.set("detail", "1");
     setParams(next);
   }
 
@@ -25,10 +23,6 @@ export default function DateRangeForm() {
       <input type="date" name="from" defaultValue={from} className="input input-sm input-bordered" />
       <span>～</span>
       <input type="date" name="to" defaultValue={to} className="input input-sm input-bordered" />
-      <label className="label cursor-pointer gap-1">
-        <input type="checkbox" name="detail" defaultChecked={detail} className="checkbox checkbox-sm" />
-        <span>内訳</span>
-      </label>
       <button type="submit" className="btn btn-sm btn-neutral">表示</button>
     </form>
   );

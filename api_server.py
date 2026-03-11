@@ -14,7 +14,7 @@ from models.task import Task
 from models.project import Project
 from utils.constants import DEFAULT_BLOCK_COLOR
 from utils.report_helpers import (
-    _aggregate_by_project, _merge_aggregates,
+    _aggregate_by_project, _aggregate_by_task, _merge_aggregates,
     _totals_to_json_list, _fmt_time,
 )
 
@@ -96,48 +96,8 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
         ]
         return jsonify(result)
 
-    @app.route("/api/report")
-    def report():
-        date_str = request.args.get("date", date.today().isoformat())
-        tasks = db.get_tasks_for_date(date_str)
-        proj_map = {p.id: p.name for p in db.get_all_projects()}
-        totals = _aggregate_by_project(tasks, proj_map)
-        grand_total = sum(totals.values())
-        return jsonify({
-            "date": date_str,
-            "total_seconds": int(grand_total),
-            "total_formatted": _fmt_time(grand_total),
-            "projects": _totals_to_json_list(totals),
-        })
-
-    @app.route("/api/reports")
-    def reports():
-        start_date, end_date = _resolve_date_range()
-        proj_map = {p.id: p.name for p in db.get_all_projects()}
-        totals = {}
-        days_with_tasks = 0
-        d = start_date
-        while d <= end_date:
-            tasks = db.get_tasks_for_date(d.isoformat())
-            if tasks:
-                days_with_tasks += 1
-                day_totals = _aggregate_by_project(tasks, proj_map)
-                _merge_aggregates(totals, day_totals)
-            d += timedelta(days=1)
-        days = (end_date - start_date).days + 1
-        grand_total = sum(totals.values())
-        return jsonify({
-            "from": start_date.isoformat(),
-            "to": end_date.isoformat(),
-            "days": days,
-            "days_with_tasks": days_with_tasks,
-            "total_seconds": int(grand_total),
-            "total_formatted": _fmt_time(grand_total),
-            "projects": _totals_to_json_list(totals),
-        })
-
-    @app.route("/api/reports-by-day")
-    def reports_by_day():
+    @app.route("/api/report/daily")
+    def report_daily():
         start_date, end_date = _resolve_date_range()
         proj_map = {p.id: p.name for p in db.get_all_projects()}
         days_with_tasks = 0
@@ -167,6 +127,31 @@ def create_app(db: Database, notifier: ApiNotifier) -> Flask:
             "total_seconds": int(grand_total),
             "total_formatted": _fmt_time(grand_total),
             "daily": json_days,
+        })
+
+    @app.route("/api/report/tasks")
+    def report_tasks():
+        start_date, end_date = _resolve_date_range()
+        totals = {}
+        days_with_tasks = 0
+        d = start_date
+        while d <= end_date:
+            tasks = db.get_tasks_for_date(d.isoformat())
+            if tasks:
+                days_with_tasks += 1
+                day_totals = _aggregate_by_task(tasks)
+                _merge_aggregates(totals, day_totals)
+            d += timedelta(days=1)
+        days = (end_date - start_date).days + 1
+        grand_total = sum(totals.values())
+        return jsonify({
+            "from": start_date.isoformat(),
+            "to": end_date.isoformat(),
+            "days": days,
+            "days_with_tasks": days_with_tasks,
+            "total_seconds": int(grand_total),
+            "total_formatted": _fmt_time(grand_total),
+            "tasks": _totals_to_json_list(totals),
         })
 
     # ── POST endpoints ──

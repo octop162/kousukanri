@@ -117,60 +117,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/report:
+  /api/report/daily:
     get:
-      summary: 日次レポート
-      tags: [レポート]
-      parameters:
-        - name: date
-          in: query
-          description: "対象日 (デフォルト: 今日)"
-          schema:
-            type: string
-            format: date
-            example: "2026-03-10"
-      responses:
-        "200":
-          description: 日次レポート
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DailyReport"
-
-  /api/reports:
-    get:
-      summary: 期間集計レポート
-      tags: [レポート]
-      parameters:
-        - name: from
-          in: query
-          description: 開始日
-          schema:
-            type: string
-            format: date
-        - name: to
-          in: query
-          description: "終了日 (デフォルト: 今日)"
-          schema:
-            type: string
-            format: date
-        - name: since
-          in: query
-          description: "直近N日 (例: 30d)。from より優先"
-          schema:
-            type: string
-            example: "30d"
-      responses:
-        "200":
-          description: 期間集計レポート
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PeriodReport"
-
-  /api/reports-by-day:
-    get:
-      summary: 日別レポート
+      summary: 日別レポート（期間内の日別×プロジェクト別工数）
       tags: [レポート]
       parameters:
         - name: from
@@ -197,7 +146,38 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DailyReport_ByDay"
+                $ref: "#/components/schemas/ReportDaily"
+
+  /api/report/tasks:
+    get:
+      summary: タスク別レポート（期間全体のタスク別工数集計）
+      tags: [レポート]
+      parameters:
+        - name: from
+          in: query
+          description: 開始日
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: "終了日 (デフォルト: 今日)"
+          schema:
+            type: string
+            format: date
+        - name: since
+          in: query
+          description: "直近N日 (例: 30d)。from より優先"
+          schema:
+            type: string
+            example: "30d"
+      responses:
+        "200":
+          description: タスク別レポート
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportTasks"
 
 components:
   schemas:
@@ -311,7 +291,7 @@ components:
           description: "色コード (デフォルト: #4fc3f7)"
           example: "#ff9800"
 
-    ProjectEntry:
+    ReportEntry:
       type: object
       properties:
         name:
@@ -322,51 +302,9 @@ components:
           example: 5400
         formatted:
           type: string
-          example: "1:30:00"
+          example: "1h 30m"
 
-    DailyReport:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-          example: "2026-03-10"
-        total_seconds:
-          type: integer
-          example: 28800
-        total_formatted:
-          type: string
-          example: "8:00:00"
-        projects:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProjectEntry"
-
-    PeriodReport:
-      type: object
-      properties:
-        from:
-          type: string
-          format: date
-        to:
-          type: string
-          format: date
-        days:
-          type: integer
-          description: 期間の日数
-        days_with_tasks:
-          type: integer
-          description: タスクが存在する日数
-        total_seconds:
-          type: integer
-        total_formatted:
-          type: string
-        projects:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProjectEntry"
-
-    DailyReport_ByDay:
+    ReportDaily:
       type: object
       properties:
         from:
@@ -398,7 +336,29 @@ components:
               projects:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ProjectEntry"
+                  $ref: "#/components/schemas/ReportEntry"
+
+    ReportTasks:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        days:
+          type: integer
+        days_with_tasks:
+          type: integer
+        total_seconds:
+          type: integer
+        total_formatted:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportEntry"
 
     Error:
       type: object

@@ -1,10 +1,8 @@
-/** Format seconds into "H時間M分" */
+/** Format seconds into "HH:MM" */
 export function fmtTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0 && m > 0) return `${h}時間${m}分`;
-  if (h > 0) return `${h}時間`;
-  return `${m}分`;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 /** Today's date in YYYY-MM-DD */

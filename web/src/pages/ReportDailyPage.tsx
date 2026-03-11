@@ -1,21 +1,21 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, type ReportsByDay } from "../api";
+import { api, type ReportDaily } from "../api";
 import ReportList from "../components/ReportList";
 import DateRangeForm from "../components/DateRangeForm";
 import { today, thirtyDaysAgo, fmtTime } from "../utils";
 
-export default function ReportsByDayPage() {
+export default function ReportDailyPage() {
   const [params] = useSearchParams();
   const from = params.get("from") || thirtyDaysAgo();
   const to = params.get("to") || today();
-  const [data, setData] = useState<ReportsByDay | null>(null);
+  const [data, setData] = useState<ReportDaily | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setError(null);
     api
-      .getReportsByDay({ from, to })
+      .getReportDaily({ from, to })
       .then(setData)
       .catch((e: Error) => setError(e.message));
   }, [from, to]);
@@ -33,7 +33,7 @@ export default function ReportsByDayPage() {
                 <p className="font-semibold">{day.date}</p>
                 <span className="text-sm opacity-60">{fmtTime(day.total_seconds)}</span>
               </div>
-              <ReportList projects={day.projects} grandTotal={day.total_seconds} />
+              <ReportList items={day.projects} grandTotal={day.total_seconds} />
             </section>
           ))}
           <p className="font-bold text-base border-t-2 border-base-300 pt-2">

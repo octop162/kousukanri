@@ -4,9 +4,8 @@ import { NavLink, Outlet } from "react-router-dom";
 const navItems = [
   { to: "/tasks", label: "タスク" },
   { to: "/projects", label: "プロジェクト" },
-  { to: "/report", label: "日次レポート" },
-  { to: "/reports", label: "期間集計" },
-  { to: "/reports-by-day", label: "日別レポート" },
+  { to: "/report/daily", label: "日別レポート" },
+  { to: "/report/tasks", label: "タスク別レポート" },
 ];
 
 function getInitialDark(): boolean {

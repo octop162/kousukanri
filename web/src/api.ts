@@ -17,37 +17,20 @@ export interface Project {
   archived: boolean;
 }
 
-export interface ReportProject {
+export interface ReportEntry {
   name: string;
   seconds: number;
   formatted: string;
-}
-
-export interface Report {
-  date: string;
-  total_seconds: number;
-  total_formatted: string;
-  projects: ReportProject[];
-}
-
-export interface Reports {
-  from: string;
-  to: string;
-  days: number;
-  days_with_tasks: number;
-  total_seconds: number;
-  total_formatted: string;
-  projects: ReportProject[];
 }
 
 export interface DayReport {
   date: string;
   total_seconds: number;
   total_formatted: string;
-  projects: ReportProject[];
+  projects: ReportEntry[];
 }
 
-export interface ReportsByDay {
+export interface ReportDaily {
   from: string;
   to: string;
   days: number;
@@ -55,6 +38,16 @@ export interface ReportsByDay {
   total_seconds: number;
   total_formatted: string;
   daily: DayReport[];
+}
+
+export interface ReportTasks {
+  from: string;
+  to: string;
+  days: number;
+  days_with_tasks: number;
+  total_seconds: number;
+  total_formatted: string;
+  tasks: ReportEntry[];
 }
 
 const BASE = "";
@@ -104,12 +97,9 @@ export const api = {
   archiveProject: (id: number, archived: boolean) =>
     patch<{ id: number; archived: boolean }>(`/api/projects/${id}/archive`, { archived }),
 
-  getReport: (params?: { date?: string }) =>
-    get<Report>("/api/report", params as Record<string, string>),
+  getReportDaily: (params?: { from?: string; to?: string; since?: string }) =>
+    get<ReportDaily>("/api/report/daily", params as Record<string, string>),
 
-  getReports: (params?: { from?: string; to?: string; since?: string }) =>
-    get<Reports>("/api/reports", params as Record<string, string>),
-
-  getReportsByDay: (params?: { from?: string; to?: string; since?: string }) =>
-    get<ReportsByDay>("/api/reports-by-day", params as Record<string, string>),
+  getReportTasks: (params?: { from?: string; to?: string; since?: string }) =>
+    get<ReportTasks>("/api/report/tasks", params as Record<string, string>),
 };

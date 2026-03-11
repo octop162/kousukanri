@@ -17,7 +17,7 @@ def _display_width(s):
 def _fmt_time(seconds):
     h = int(seconds) // 3600
     m = int(seconds) % 3600 // 60
-    return f"{h}h {m:02d}m"
+    return f"{h:02d}:{m:02d}"
 
 
 
@@ -31,6 +31,18 @@ def _aggregate_by_project(tasks, proj_map):
         proj_name = proj_map.get(t.project_id, "(なし)") if t.project_id else "(なし)"
         secs = (t.end_time - t.start_time).total_seconds()
         totals[proj_name] = totals.get(proj_name, 0) + secs
+    return totals
+
+
+def _aggregate_by_task(tasks):
+    """Aggregate durations by task name.
+
+    Returns totals: {task_name: seconds}
+    """
+    totals = {}
+    for t in tasks:
+        secs = (t.end_time - t.start_time).total_seconds()
+        totals[t.name] = totals.get(t.name, 0) + secs
     return totals
 
 

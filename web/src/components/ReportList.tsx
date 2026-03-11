@@ -1,23 +1,23 @@
-import type { ReportProject } from "../api";
+import type { ReportEntry } from "../api";
 import { fmtTime } from "../utils";
 
 interface Props {
-  projects: ReportProject[];
+  items: ReportEntry[];
   grandTotal: number;
 }
 
-export default function ReportList({ projects, grandTotal }: Props) {
+export default function ReportList({ items, grandTotal }: Props) {
   return (
     <div className="text-sm">
       <table className="border-collapse w-full max-w-md">
         <tbody>
-          {projects.map((proj) => (
-            <tr key={proj.name}>
+          {items.map((item) => (
+            <tr key={item.name}>
               <td className="py-0.5 pr-2 align-top whitespace-nowrap">
-                {proj.name}
+                {item.name}
               </td>
               <td className="py-0.5 align-top whitespace-nowrap text-right tabular-nums w-24">
-                {fmtTime(proj.seconds)}
+                {fmtTime(item.seconds)}
               </td>
             </tr>
           ))}

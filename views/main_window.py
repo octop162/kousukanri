@@ -26,6 +26,7 @@ class MainWindow(QMainWindow):
                  parent=None):
         super().__init__(parent)
         self.setWindowTitle("工数管理")
+        self._base_title = "工数管理"
         icon_path = Path(__file__).parent.parent / "icon.png"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
@@ -74,6 +75,11 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(0, 0, 0, 0)
 
         right_layout.addWidget(timer_widget)
+
+        # Connect timer signals to update window title
+        timer_widget.timer_started.connect(self._on_timer_started)
+        timer_widget.timer_stopped.connect(self._on_timer_stopped)
+        timer_widget.timer_name_changed.connect(self._on_timer_name_changed)
 
         # Upper tabs: タスク
         tab_widget = QTabWidget()
@@ -182,12 +188,6 @@ class MainWindow(QMainWindow):
     def _on_zoom_changed(self, level: float):
         self._zoom_label.setText(f"{int(level * 100)}%")
 
-    def changeEvent(self, event):
-        super().changeEvent(event)
-        if event.type() == event.Type.WindowStateChange:
-            if self.isMinimized():
-                self.hide()
-
     def closeEvent(self, event):
         event.ignore()
         self.hide()
@@ -204,3 +204,13 @@ class MainWindow(QMainWindow):
         self._tray.hide()
         from PySide6.QtWidgets import QApplication
         QApplication.quit()
+
+    def _on_timer_started(self, name: str, project_id: str):
+        self.setWindowTitle(name)
+
+    def _on_timer_name_changed(self, name: str):
+        self.setWindowTitle(name)
+
+    def _on_timer_stopped(self):
+        self.setWindowTitle(self._base_title)
+

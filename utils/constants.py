@@ -16,7 +16,7 @@ MIN_BLOCK_DRAG_PX = 10  # minimum drag distance to create a block
 # Snap
 SNAP_MINUTES = 1
 SHIFT_SNAP_MINUTES = 5   # snap interval when Shift is held (overridden by settings)
-CTRL_SNAP_MINUTES = 10   # snap interval when Ctrl is held (overridden by settings)
+ALT_SNAP_MINUTES = 10    # snap interval when Alt is held (overridden by settings)
 
 # Ruler
 RULER_WIDTH = 50  # left-side ruler column width

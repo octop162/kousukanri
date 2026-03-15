@@ -299,8 +299,8 @@ class TimelineScene(QGraphicsScene):
                 mods = event.modifiers()
                 if mods & Qt.KeyboardModifier.ShiftModifier:
                     snap = C.SHIFT_SNAP_MINUTES
-                elif mods & Qt.KeyboardModifier.ControlModifier:
-                    snap = C.CTRL_SNAP_MINUTES
+                elif mods & Qt.KeyboardModifier.AltModifier:
+                    snap = C.ALT_SNAP_MINUTES
                 else:
                     snap = None
                 start = y_to_time(y1, self._reference_date, snap)

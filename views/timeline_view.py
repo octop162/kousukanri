@@ -67,3 +67,13 @@ class TimelineView(QGraphicsView):
         self.centerOn(0, new_center_y)
 
         self.zoom_changed.emit(level)
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            if event.angleDelta().y() > 0:
+                self.zoom_in()
+            else:
+                self.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)

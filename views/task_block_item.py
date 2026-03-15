@@ -159,8 +159,8 @@ class TaskBlockItem(QGraphicsRectItem):
             mods = event.modifiers()
             if mods & Qt.KeyboardModifier.ShiftModifier:
                 snap = C.SHIFT_SNAP_MINUTES
-            elif mods & Qt.KeyboardModifier.ControlModifier:
-                snap = C.CTRL_SNAP_MINUTES
+            elif mods & Qt.KeyboardModifier.AltModifier:
+                snap = C.ALT_SNAP_MINUTES
             else:
                 snap = None
             if self._mode == _Mode.MOVE:

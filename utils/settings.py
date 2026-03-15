@@ -19,7 +19,7 @@ SETTINGS_FILE = SETTINGS_DIR / "settings.json"
 DEFAULTS = {
     "snap_minutes": 1,
     "shift_snap_minutes": 5,
-    "ctrl_snap_minutes": 10,
+    "alt_snap_minutes": 10,
     "default_duration_minutes": 30,
     "theme": "dark",
     "timeline_start_hour": 7,

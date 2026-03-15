@@ -29,6 +29,16 @@ class SettingsView(QWidget):
         self._snap_spin.setSuffix(" 分")
         layout.addRow("スナップ間隔:", self._snap_spin)
 
+        self._shift_snap_spin = QSpinBox()
+        self._shift_snap_spin.setRange(1, 60)
+        self._shift_snap_spin.setSuffix(" 分")
+        layout.addRow("Shift 時スナップ間隔:", self._shift_snap_spin)
+
+        self._ctrl_snap_spin = QSpinBox()
+        self._ctrl_snap_spin.setRange(1, 60)
+        self._ctrl_snap_spin.setSuffix(" 分")
+        layout.addRow("Ctrl 時スナップ間隔:", self._ctrl_snap_spin)
+
         self._duration_spin = QSpinBox()
         self._duration_spin.setRange(1, 480)
         self._duration_spin.setSuffix(" 分")
@@ -87,6 +97,8 @@ class SettingsView(QWidget):
     def _load(self):
         s = load_settings()
         self._snap_spin.setValue(s["snap_minutes"])
+        self._shift_snap_spin.setValue(s.get("shift_snap_minutes", 5))
+        self._ctrl_snap_spin.setValue(s.get("ctrl_snap_minutes", 10))
         self._duration_spin.setValue(s["default_duration_minutes"])
         self._start_hour_spin.setValue(s.get("timeline_start_hour", 0))
         self._end_hour_spin.setValue(s.get("timeline_end_hour", 24))
@@ -104,6 +116,8 @@ class SettingsView(QWidget):
     def _on_save(self):
         s = {
             "snap_minutes": self._snap_spin.value(),
+            "shift_snap_minutes": self._shift_snap_spin.value(),
+            "ctrl_snap_minutes": self._ctrl_snap_spin.value(),
             "default_duration_minutes": self._duration_spin.value(),
             "timeline_start_hour": self._start_hour_spin.value(),
             "timeline_end_hour": self._end_hour_spin.value(),

@@ -15,6 +15,8 @@ MIN_BLOCK_DRAG_PX = 10  # minimum drag distance to create a block
 
 # Snap
 SNAP_MINUTES = 1
+SHIFT_SNAP_MINUTES = 5   # snap interval when Shift is held (overridden by settings)
+CTRL_SNAP_MINUTES = 10   # snap interval when Ctrl is held (overridden by settings)
 
 # Ruler
 RULER_WIDTH = 50  # left-side ruler column width
@@ -49,12 +51,13 @@ def time_to_y(t: datetime) -> float:
     return (elapsed - TIMELINE_START_HOUR) * PIXELS_PER_HOUR
 
 
-def y_to_time(y: float, reference_date: datetime | None = None) -> datetime:
-    """Convert a Y pixel coordinate to a datetime, snapped to SNAP_MINUTES."""
+def y_to_time(y: float, reference_date: datetime | None = None, snap_minutes: int | None = None) -> datetime:
+    """Convert a Y pixel coordinate to a datetime, snapped to snap_minutes (default: SNAP_MINUTES)."""
     hours = y / PIXELS_PER_HOUR + TIMELINE_START_HOUR
     total_minutes = hours * 60
     # Snap
-    snapped = round(total_minutes / SNAP_MINUTES) * SNAP_MINUTES
+    snap = snap_minutes if snap_minutes is not None else SNAP_MINUTES
+    snapped = round(total_minutes / snap) * snap
     snapped = max(0, min(snapped, 24 * 60))
 
     if reference_date is None:

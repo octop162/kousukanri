@@ -9,6 +9,7 @@ from PySide6.QtGui import QBrush, QColor, QPen, QPainter, QFont, QCursor
 from PySide6.QtCore import Qt, QRectF
 
 from models.task import Task
+import utils.constants as C
 from utils.constants import (
     BLOCK_WIDTH, BLOCK_LEFT, BLOCK_CORNER_RADIUS, RESIZE_HANDLE_PX,
     time_to_y, y_to_time,
@@ -130,21 +131,28 @@ class TaskBlockItem(QGraphicsRectItem):
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
         if self._mode != _Mode.NONE:
-            if self._mode == _Mode.MOVE:
-                self._sync_move()
+            mods = event.modifiers()
+            if mods & Qt.KeyboardModifier.ShiftModifier:
+                snap = C.SHIFT_SNAP_MINUTES
+            elif mods & Qt.KeyboardModifier.ControlModifier:
+                snap = C.CTRL_SNAP_MINUTES
             else:
-                self._sync_resize()
+                snap = None
+            if self._mode == _Mode.MOVE:
+                self._sync_move(snap)
+            else:
+                self._sync_resize(snap)
             self._mode = _Mode.NONE
             self.unsetCursor()
             if self._scene is not None:
                 self._scene.task_changed.emit(self.task)
 
-    def _sync_move(self):
+    def _sync_move(self, snap_minutes=None):
         """Move block, keeping duration. Jump to nearest free slot on overlap."""
         scene_y = self.pos().y()
         h = self.rect().height()
-        start = y_to_time(scene_y, self._reference_date)
-        end = y_to_time(scene_y + h, self._reference_date)
+        start = y_to_time(scene_y, self._reference_date, snap_minutes)
+        end = y_to_time(scene_y + h, self._reference_date, snap_minutes)
 
         if self._scene is not None:
             start, end = self._scene.resolve_move(start, end, exclude=self)
@@ -153,12 +161,12 @@ class TaskBlockItem(QGraphicsRectItem):
         self.task.end_time = end
         self._apply_visual()
 
-    def _sync_resize(self):
+    def _sync_resize(self, snap_minutes=None):
         """Resize block, adjusting start/end to avoid overlaps."""
         scene_y = self.pos().y()
         h = self.rect().height()
-        start = y_to_time(scene_y, self._reference_date)
-        end = y_to_time(scene_y + h, self._reference_date)
+        start = y_to_time(scene_y, self._reference_date, snap_minutes)
+        end = y_to_time(scene_y + h, self._reference_date, snap_minutes)
 
         orig_start = self.task.start_time
         orig_end = self.task.end_time

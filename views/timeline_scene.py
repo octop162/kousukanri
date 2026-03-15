@@ -2,7 +2,7 @@ from datetime import datetime
 
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsRectItem
 from PySide6.QtGui import QColor, QBrush, QPen, QTransform
-from PySide6.QtCore import Signal, QRectF
+from PySide6.QtCore import Signal, QRectF, Qt
 
 import utils.constants as C
 from utils.constants import time_to_y, y_to_time
@@ -296,8 +296,15 @@ class TimelineScene(QGraphicsScene):
             y2 = max(self._drag_start_y, event.scenePos().y())
 
             if (y2 - y1) >= C.MIN_BLOCK_DRAG_PX:
-                start = y_to_time(y1, self._reference_date)
-                end = y_to_time(y2, self._reference_date)
+                mods = event.modifiers()
+                if mods & Qt.KeyboardModifier.ShiftModifier:
+                    snap = C.SHIFT_SNAP_MINUTES
+                elif mods & Qt.KeyboardModifier.ControlModifier:
+                    snap = C.CTRL_SNAP_MINUTES
+                else:
+                    snap = None
+                start = y_to_time(y1, self._reference_date, snap)
+                end = y_to_time(y2, self._reference_date, snap)
                 if start < end:
                     result = self.resolve_overlap(start, end)
                     if result is not None:

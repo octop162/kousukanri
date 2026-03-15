@@ -19,6 +19,8 @@ def apply_settings(settings: dict):
     """Apply settings to constants."""
     import utils.constants as C
     C.SNAP_MINUTES = settings["snap_minutes"]
+    C.SHIFT_SNAP_MINUTES = settings.get("shift_snap_minutes", 5)
+    C.CTRL_SNAP_MINUTES = settings.get("ctrl_snap_minutes", 10)
     C.TIMELINE_START_HOUR = settings.get("timeline_start_hour", 0)
     C.TIMELINE_END_HOUR = settings.get("timeline_end_hour", 24)
     C.TIMELINE_HEIGHT = C.PIXELS_PER_HOUR * (C.TIMELINE_END_HOUR - C.TIMELINE_START_HOUR)

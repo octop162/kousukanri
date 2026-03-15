@@ -2,8 +2,9 @@ from datetime import datetime, date, timedelta
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QLineEdit, QComboBox, QLabel, QPushButton,
-    QCompleter,
+    QCompleter, QSizePolicy,
 )
+from views.flow_layout import FlowLayout
 from PySide6.QtCore import Signal, QTimer, Qt, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QColor, QIcon
 
@@ -45,19 +46,26 @@ class TimerWidget(QWidget):
         self._tick_timer.setInterval(1000)
         self._tick_timer.timeout.connect(self._on_tick)
 
-    def _init_ui(self):
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
+    def hasHeightForWidth(self):
+        return True
 
+    def heightForWidth(self, width):
+        if self.layout():
+            return self.layout().heightForWidth(width)
+        return super().heightForWidth(width)
+
+    def _init_ui(self):
+        layout = FlowLayout(self, margin=4, h_spacing=6, v_spacing=4)
+
+        # Group 1: task name input (stretches)
         self._name_edit = QLineEdit()
         self._name_edit.setPlaceholderText("何をしている？")
+        self._name_edit.setMinimumWidth(200)
+        self._name_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._name_edit.textChanged.connect(self._on_name_changed)
-        layout.addWidget(self._name_edit, 1)
+        layout.addWidget(self._name_edit)
 
         # Completer for task name with history
-        # DisplayRole = "タスク名 — プロジェクト" (popup display)
-        # EditRole = "タスク名" (inserted into line edit)
-        # UserRole = project_id (for auto-selecting project)
         self._completer_model = QStandardItemModel()
         self._completer = _TaskCompleter(self._completer_model, self)
         self._completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
@@ -67,29 +75,39 @@ class TimerWidget(QWidget):
         self._completer.activated[QModelIndex].connect(self._on_completer_activated)
         self._name_edit.setCompleter(self._completer)
 
+        # Group 2: project, time, buttons (stays together, stretches when wrapped)
+        controls = QWidget()
+        controls.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        controls_layout = QHBoxLayout(controls)
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.setSpacing(6)
+
         self._project_combo = QComboBox()
         self._project_combo.setMinimumWidth(150)
+        self._project_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._project_combo.addItem("(なし)", None)
         self._project_combo.currentIndexChanged.connect(self._on_project_changed)
-        layout.addWidget(self._project_combo)
+        controls_layout.addWidget(self._project_combo, 1)
 
         self._time_label = QLabel("00:00:00")
         self._time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._time_label.setMinimumWidth(70)
         self._time_label.setStyleSheet("font-size: 14px; font-weight: bold;")
-        layout.addWidget(self._time_label)
+        controls_layout.addWidget(self._time_label)
 
         self._add_btn = QPushButton("+")
         self._add_btn.setFixedWidth(40)
         self._add_btn.setStyleSheet(self._btn_style(self._theme.get("timer_add", "#3498DB")))
         self._add_btn.clicked.connect(self._on_add)
-        layout.addWidget(self._add_btn)
+        controls_layout.addWidget(self._add_btn)
 
         self._toggle_btn = QPushButton("▶")
         self._toggle_btn.setFixedWidth(40)
         self._toggle_btn.setStyleSheet(self._btn_style(self._theme.get("timer_start", "#2ECC71")))
         self._toggle_btn.clicked.connect(self._on_toggle)
-        layout.addWidget(self._toggle_btn)
+        controls_layout.addWidget(self._toggle_btn)
+
+        layout.addWidget(controls)
 
     @staticmethod
     def _btn_style(bg: str) -> str:

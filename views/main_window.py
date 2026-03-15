@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (QMainWindow, QSplitter, QTabWidget, QWidget,
                                 QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-                                QSystemTrayIcon, QMenu)
+                                QSystemTrayIcon, QMenu, QSizePolicy)
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QAction, QShortcut, QKeySequence
 
@@ -32,7 +32,21 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(1200, 1000)
 
-        self._splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        # Central widget: timer on top, splitter below
+        central = QWidget()
+        central_layout = QVBoxLayout(central)
+        central_layout.setContentsMargins(0, 0, 0, 0)
+        central_layout.setSpacing(0)
+
+        # Timer widget at top (full width, height adapts to wrapping via heightForWidth)
+        central_layout.addWidget(timer_widget, 0)
+
+        # Connect timer signals to update window title
+        timer_widget.timer_started.connect(self._on_timer_started)
+        timer_widget.timer_stopped.connect(self._on_timer_stopped)
+        timer_widget.timer_name_changed.connect(self._on_timer_name_changed)
+
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter = self._splitter
 
         # Left panel: date nav + timeline + zoom bar
@@ -83,13 +97,6 @@ class MainWindow(QMainWindow):
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
-
-        right_layout.addWidget(timer_widget)
-
-        # Connect timer signals to update window title
-        timer_widget.timer_started.connect(self._on_timer_started)
-        timer_widget.timer_stopped.connect(self._on_timer_stopped)
-        timer_widget.timer_name_changed.connect(self._on_timer_name_changed)
 
         # Upper tabs: タスク
         tab_widget = QTabWidget()
@@ -143,7 +150,8 @@ class MainWindow(QMainWindow):
         right_panel.minimumSizeHint = lambda: _zero
         left_panel.minimumSizeHint = lambda: _zero
 
-        self.setCentralWidget(splitter)
+        central_layout.addWidget(splitter, 1)
+        self.setCentralWidget(central)
 
         # Panel toggle: connect and apply initial state from settings
         self._btn_toggle_panel.clicked.connect(self._toggle_panel)
@@ -217,13 +225,10 @@ class MainWindow(QMainWindow):
                 else:
                     self.resize(1200, self.height())
             sizes = self._saved_splitter_sizes
-            if sizes and sum(sizes) > 0:
-                total = self._splitter.width() or self.width()
-                ratio = total / sum(sizes) if sum(sizes) > 0 else 1.0
-                self._splitter.setSizes([int(s * ratio) for s in sizes])
-            else:
-                w = self.width()
-                self._splitter.setSizes([int(w * 0.33), int(w * 0.67)])
+            left_w = sizes[0] if sizes and sizes[0] > 0 else 400
+            total = self._splitter.width() or self.width()
+            right_w = max(total - left_w, 100)
+            self._splitter.setSizes([left_w, right_w])
         if save:
             from utils.settings import load_settings, save_settings
             s = load_settings()

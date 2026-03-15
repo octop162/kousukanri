@@ -31,7 +31,8 @@ tracker/
 │   ├── routine.py             # Routine dataclass (定期タスクプリセット)
 │   └── database.py            # SQLite DAL (WAL, CRUD, マイグレーション, check_same_thread対応)
 ├── views/
-│   ├── main_window.py         # QMainWindow + QSplitter + システムトレイ + 多重起動防止 (1200x1000)
+│   ├── main_window.py         # QMainWindow (タイマー + QSplitter) + システムトレイ + 多重起動防止 (1200x1000)
+│   ├── flow_layout.py         # FlowLayout (幅不足時に折り返す QLayout、Expanding 対応)
 │   ├── timeline_view.py       # QGraphicsView (起動時 8:00 付近にスクロール)
 │   ├── timeline_scene.py      # QGraphicsScene (D&D 新規作成・重複制御・ダブルクリック)
 │   ├── task_block_item.py     # QGraphicsRectItem (移動・リサイズ・右クリック)
@@ -39,7 +40,7 @@ tracker/
 │   ├── task_list_view.py      # タスクリスト (追加フォーム + テーブル、複数選択・一括編集)
 │   ├── task_edit_dialog.py    # タスク編集ダイアログ (単体編集 + 一括編集)
 │   ├── project_list_view.py   # プロジェクト管理 (CRUD + 色変更 + アーカイブ)
-│   ├── timer_widget.py        # タイマーバー (タスク名・プロジェクト・経過時間・▶/■ボタン)
+│   ├── timer_widget.py        # タイマーバー (FlowLayout で折り返し、タスク名・プロジェクト・経過時間・▶/■ボタン)
 │   ├── date_nav_widget.py     # 日付ナビゲーション (◀/今日/▶ + カレンダーポップアップ)
 │   ├── routine_view.py        # 定期タスク管理 (登録フォーム + テーブル + ワンクリック追加)
 │   └── settings_view.py       # 設定画面 (スナップ・Shiftスナップ・表示範囲・テーマ・通知・APIサーバー)
@@ -101,6 +102,10 @@ tracker/
 - 多重起動防止: QLocalServer/Socket により既存ウィンドウを前面に復帰
 
 ## タイマー
+- ウィンドウ最上段に全幅配置（左右スプリッターの上）
+- FlowLayout で 2 グループに分割: [タスク名入力] と [プロジェクト▼ | 00:00:00 | + | ▶]
+  - 広い幅: 1行表示、タスク名入力が伸縮、プロジェクト幅は固定
+  - 狭い幅: 2行に折り返し、プロジェクトプルダウンが行幅いっぱいに伸縮
 - タスク名・プロジェクト・経過時間・▶/■ボタン
 - タイマー開始時に表示日が今日でなければ自動で今日に切り替え
 - タイマー実行中の日付移動: タイマーは停止せず、表示日≠タスク日なら更新スキップ

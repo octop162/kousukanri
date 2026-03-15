@@ -38,6 +38,7 @@ class TaskBlockItem(QGraphicsRectItem):
         self._press_y: float = 0
         self._press_rect = QRectF()
         self._font = QFont("Segoe UI", 9)
+        self._project_font = QFont("Segoe UI", 8)
 
         self.setPos(BLOCK_LEFT, y1)
 
@@ -62,11 +63,35 @@ class TaskBlockItem(QGraphicsRectItem):
         painter.setPen(self.pen())
         painter.drawRoundedRect(r, BLOCK_CORNER_RADIUS, BLOCK_CORNER_RADIUS)
 
-        # Draw task name — use darkened block color for text
-        painter.setPen(QPen(QColor(self.task.color).darker(250)))
+        text_color = QColor(self.task.color).darker(250)
+
+        # Draw task name
+        painter.setPen(QPen(text_color))
         painter.setFont(self._font)
         text_rect = r.adjusted(8, 4, -4, -4)
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, self.task.name)
+
+        # Draw project name below task name (muted)
+        project_name = self._get_project_name()
+        if project_name:
+            fm = painter.fontMetrics()
+            name_height = fm.boundingRect(text_rect.toRect(),
+                Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap,
+                self.task.name).height()
+            proj_color = QColor(text_color)
+            proj_color.setAlpha(120)
+            painter.setPen(QPen(proj_color))
+            painter.setFont(self._project_font)
+            proj_rect = text_rect.adjusted(0, name_height + 2, 0, 0)
+            painter.drawText(proj_rect, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft, project_name)
+
+    def _get_project_name(self) -> str:
+        if not self.task.project_id or self._scene is None:
+            return ""
+        for p in self._scene._projects:
+            if p.id == self.task.project_id:
+                return p.name
+        return ""
 
     # ── hover cursor ──────────────────────────────────────────
 

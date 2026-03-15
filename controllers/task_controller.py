@@ -462,10 +462,7 @@ class TaskController(QObject):
         self._record_undo("task_insert", [(None, replace(task))])
 
 
-    def _on_task_changed(self, task: Task):
-        # Sceneから届く task は既に変更済みなので、Undo用にキャッシュから変更前を取得
-        old = self._tasks.get(task.id)
-        old_snapshot = replace(old) if old is not None else None
+    def _on_task_changed(self, old_snapshot: Task, task: Task):
         self._tasks[task.id] = task
         if self._db is not None:
             self._db.update_task(task)

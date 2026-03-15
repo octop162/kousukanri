@@ -13,7 +13,7 @@ from views.task_block_item import TaskBlockItem
 
 class TimelineScene(QGraphicsScene):
     task_created = Signal(Task)
-    task_changed = Signal(Task)
+    task_changed = Signal(Task, Task)  # (old_snapshot, new_task)
     task_deleted = Signal(str)  # task id
 
     def __init__(self, parent=None, theme_colors: dict | None = None):

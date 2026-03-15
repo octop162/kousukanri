@@ -1,3 +1,4 @@
+from dataclasses import replace as dc_replace
 from datetime import datetime
 from enum import Enum, auto
 
@@ -37,6 +38,7 @@ class TaskBlockItem(QGraphicsRectItem):
         self._mode = _Mode.NONE
         self._press_y: float = 0
         self._press_rect = QRectF()
+        self._pre_drag_snapshot: Task | None = None
         self._font = QFont("Segoe UI", 9)
         self._project_font = QFont("Segoe UI", 8)
 
@@ -125,6 +127,7 @@ class TaskBlockItem(QGraphicsRectItem):
         r = self.rect()
         self._press_y = event.scenePos().y()
         self._press_rect = QRectF(self.pos().x(), self.pos().y(), r.width(), r.height())
+        self._pre_drag_snapshot = dc_replace(self.task)
 
         if y < RESIZE_HANDLE_PX:
             self._mode = _Mode.RESIZE_TOP
@@ -181,7 +184,8 @@ class TaskBlockItem(QGraphicsRectItem):
             self._mode = _Mode.NONE
             self.unsetCursor()
             if self._scene is not None:
-                self._scene.task_changed.emit(self.task)
+                self._scene.task_changed.emit(self._pre_drag_snapshot, self.task)
+            self._pre_drag_snapshot = None
 
     def _sync_move(self, snap_minutes=None):
         """Move block, keeping duration. Jump to nearest free slot on overlap."""
@@ -272,6 +276,7 @@ class TaskBlockItem(QGraphicsRectItem):
         history = []
         if self._scene and self._scene._get_task_history:
             history = self._scene._get_task_history()
+        pre_edit_snapshot = dc_replace(self.task)
         dlg = TaskEditDialog(
             self.task.name, self.task.project_id,
             self.task.start_time, self.task.end_time,
@@ -304,4 +309,4 @@ class TaskBlockItem(QGraphicsRectItem):
         self._update_brush()
         self._apply_visual()
         if self._scene is not None:
-            self._scene.task_changed.emit(self.task)
+            self._scene.task_changed.emit(pre_edit_snapshot, self.task)

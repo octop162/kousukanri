@@ -20,8 +20,9 @@ ALT_SNAP_MINUTES = 10    # snap interval when Alt is held (overridden by setting
 
 # Ruler
 RULER_WIDTH = 50  # left-side ruler column width
-RULER_TICK_MAJOR = 60   # minutes between major ticks (1h)
-RULER_TICK_MINOR = 15   # minutes between minor ticks (mutable)
+RULER_TICK_MAJOR = 60    # minutes between major ticks (1h)
+RULER_TICK_MINOR = 15    # minutes between minor ticks (mutable)
+RULER_TICK_SUB_MINOR = 5 # minutes between sub-minor ticks (mutable)
 
 # Block area starts after the ruler
 BLOCK_LEFT = RULER_WIDTH + 8
@@ -36,12 +37,15 @@ DEFAULT_BLOCK_COLORS = [
 
 def set_zoom_scale(scale: float):
     """Update PIXELS_PER_HOUR, TIMELINE_HEIGHT, RULER_TICK_MINOR based on zoom scale."""
-    global PIXELS_PER_HOUR, TIMELINE_HEIGHT, RULER_TICK_MINOR
+    global PIXELS_PER_HOUR, TIMELINE_HEIGHT, RULER_TICK_MINOR, RULER_TICK_SUB_MINOR
     PIXELS_PER_HOUR = BASE_PIXELS_PER_HOUR * scale
     TIMELINE_HEIGHT = PIXELS_PER_HOUR * (TIMELINE_END_HOUR - TIMELINE_START_HOUR)
     # If minor tick spacing would be < 35px, double the interval
     minor_px = (15 / 60.0) * PIXELS_PER_HOUR
     RULER_TICK_MINOR = 30 if minor_px < 35 else 15
+    # Hide sub-minor ticks if they'd be too dense (< 10px apart)
+    sub_minor_px = (5 / 60.0) * PIXELS_PER_HOUR
+    RULER_TICK_SUB_MINOR = 0 if sub_minor_px < 10 else 5
 
 
 def time_to_y(t: datetime) -> float:

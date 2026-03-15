@@ -279,8 +279,17 @@ class TimelineScene(QGraphicsScene):
 
     def mouseMoveEvent(self, event):
         if self._drag_creating and self._temp_rect is not None:
-            y1 = min(self._drag_start_y, event.scenePos().y())
-            y2 = max(self._drag_start_y, event.scenePos().y())
+            mods = event.modifiers()
+            if mods & Qt.KeyboardModifier.ShiftModifier:
+                snap = C.SHIFT_SNAP_MINUTES
+            elif mods & Qt.KeyboardModifier.AltModifier:
+                snap = C.ALT_SNAP_MINUTES
+            else:
+                snap = None
+            raw_y1 = min(self._drag_start_y, event.scenePos().y())
+            raw_y2 = max(self._drag_start_y, event.scenePos().y())
+            y1 = time_to_y(y_to_time(raw_y1, self._reference_date, snap))
+            y2 = time_to_y(y_to_time(raw_y2, self._reference_date, snap))
             self._temp_rect.setRect(QRectF(C.BLOCK_LEFT, y1, C.BLOCK_WIDTH, y2 - y1))
         else:
             super().mouseMoveEvent(event)

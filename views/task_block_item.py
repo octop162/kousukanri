@@ -136,23 +136,34 @@ class TaskBlockItem(QGraphicsRectItem):
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         dy = event.scenePos().y() - self._press_y
+        mods = event.modifiers()
+        if mods & Qt.KeyboardModifier.ShiftModifier:
+            snap = C.SHIFT_SNAP_MINUTES
+        elif mods & Qt.KeyboardModifier.AltModifier:
+            snap = C.ALT_SNAP_MINUTES
+        else:
+            snap = None
 
         if self._mode == _Mode.RESIZE_TOP:
-            new_y = self._press_rect.y() + dy
-            new_h = self._press_rect.height() - dy
-            if new_h > RESIZE_HANDLE_PX * 2 and new_y >= 0:
-                self.setPos(self.pos().x(), new_y)
+            raw_y = self._press_rect.y() + dy
+            bottom_y = self._press_rect.y() + self._press_rect.height()
+            snapped_y = time_to_y(y_to_time(max(0.0, raw_y), self._reference_date, snap))
+            new_h = bottom_y - snapped_y
+            if new_h > RESIZE_HANDLE_PX * 2 and snapped_y >= 0:
+                self.setPos(self.pos().x(), snapped_y)
                 self.setRect(QRectF(0, 0, BLOCK_WIDTH, new_h))
 
         elif self._mode == _Mode.RESIZE_BOTTOM:
-            new_h = self._press_rect.height() + dy
+            raw_bottom = self._press_rect.y() + self._press_rect.height() + dy
+            snapped_bottom = time_to_y(y_to_time(raw_bottom, self._reference_date, snap))
+            new_h = snapped_bottom - self._press_rect.y()
             if new_h > RESIZE_HANDLE_PX * 2:
                 self.setRect(QRectF(0, 0, BLOCK_WIDTH, new_h))
 
         elif self._mode == _Mode.MOVE:
-            new_y = self._press_rect.y() + dy
-            new_y = max(0, new_y)
-            self.setPos(self.pos().x(), new_y)
+            raw_y = max(0.0, self._press_rect.y() + dy)
+            snapped_y = time_to_y(y_to_time(raw_y, self._reference_date, snap))
+            self.setPos(self.pos().x(), snapped_y)
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
         if self._mode != _Mode.NONE:
@@ -190,8 +201,14 @@ class TaskBlockItem(QGraphicsRectItem):
         """Resize block, adjusting start/end to avoid overlaps."""
         scene_y = self.pos().y()
         h = self.rect().height()
-        start = y_to_time(scene_y, self._reference_date, snap_minutes)
-        end = y_to_time(scene_y + h, self._reference_date, snap_minutes)
+
+        # Only snap the edge being dragged; keep the other edge unchanged
+        if self._mode == _Mode.RESIZE_TOP:
+            start = y_to_time(scene_y, self._reference_date, snap_minutes)
+            end = self.task.end_time
+        else:
+            start = self.task.start_time
+            end = y_to_time(scene_y + h, self._reference_date, snap_minutes)
 
         orig_start = self.task.start_time
         orig_end = self.task.end_time

@@ -190,9 +190,9 @@ class TaskBlockItem(QGraphicsRectItem):
     def _sync_move(self, snap_minutes=None):
         """Move block, keeping duration. Jump to nearest free slot on overlap."""
         scene_y = self.pos().y()
-        h = self.rect().height()
+        duration = self.task.end_time - self.task.start_time
         start = y_to_time(scene_y, self._reference_date, snap_minutes)
-        end = y_to_time(scene_y + h, self._reference_date, snap_minutes)
+        end = start + duration
 
         if self._scene is not None:
             start, end = self._scene.resolve_move(start, end, exclude=self)

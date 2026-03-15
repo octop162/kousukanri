@@ -153,11 +153,21 @@ cd web && npm run build         # → ../static/ に出力
 ```
 
 ```powershell
-# ローカルビルド (Nuitka)
+# ローカルビルド Windows (Nuitka)
 cd web && npm run build && cd ..
 uv run python -m nuitka --standalone --enable-plugin=pyside6 `
   --windows-console-mode=disable --windows-icon-from-ico=icon.ico `
   --include-data-dir=static/=static/ --output-dir=dist `
   --output-filename=kousu-kanri-gui.exe --assume-yes-for-downloads main.py
 # 成果物: dist/main.dist/kousu-kanri-gui.exe
+```
+
+```bash
+# ローカルビルド macOS (Nuitka)
+cd web && npm run build && cd ..
+uv run python -m nuitka --standalone --enable-plugin=pyside6 \
+  --macos-create-app-bundle \
+  --include-data-dir=static/=static/ --output-dir=dist \
+  --output-filename=kousu-kanri-gui --assume-yes-for-downloads main.py
+# 成果物: dist/kousu-kanri-gui.app
 ```

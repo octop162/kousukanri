@@ -149,10 +149,12 @@ class MainWindow(QMainWindow):
         self._undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
         self._undo_shortcut.activated.connect(self._on_undo)
 
-        # Ctrl+Y / Ctrl+Shift+Z redo shortcuts
-        self._redo_shortcut = QShortcut(QKeySequence.StandardKey.Redo, self)
+        # Ctrl+Y / Ctrl+Shift+Z redo shortcuts (explicit to avoid ambiguity)
+        self._redo_shortcut = QShortcut(QKeySequence("Ctrl+Shift+Z"), self)
+        self._redo_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
         self._redo_shortcut.activated.connect(self._on_redo)
         self._redo_shortcut2 = QShortcut(QKeySequence("Ctrl+Y"), self)
+        self._redo_shortcut2.setContext(Qt.ShortcutContext.ApplicationShortcut)
         self._redo_shortcut2.activated.connect(self._on_redo)
 
     def set_controller(self, controller):

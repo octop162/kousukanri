@@ -100,15 +100,18 @@ class MainWindow(QMainWindow):
 
         # Web UI link / server status
         from utils.settings import load_settings
+        from utils.theme import get_theme_colors
         s = load_settings()
+        colors = get_theme_colors(s.get("theme", "dark"))
+        text_color = colors["window_text"]
         if s.get("api_server_enabled", False):
             port = s.get("api_port", 8321)
             url = f"http://127.0.0.1:{port}"
-            status_label = QLabel(f'<a href="{url}" style="color: inherit; text-decoration: none;">{url}</a>')
+            status_label = QLabel(f'<a href="{url}" style="color: {text_color}; text-decoration: none;">{url}</a>')
             status_label.setOpenExternalLinks(True)
         else:
             status_label = QLabel("API サーバー: 停止中（設定から有効化）")
-            status_label.setStyleSheet("color: gray;")
+            status_label.setStyleSheet(f"color: {text_color};")
         status_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         status_label.setContentsMargins(4, 6, 4, 6)
         right_layout.addWidget(status_label)

@@ -10,7 +10,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/tasks" replace />} />
+          <Route index element={<Navigate to="/tasks?simple=1" replace />} />
           <Route path="tasks" element={<TasksPage />} />
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="report/daily" element={<ReportDailyPage />} />

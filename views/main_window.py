@@ -32,7 +32,8 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(icon_path)))
         self.resize(1200, 1000)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        self._splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        splitter = self._splitter
 
         # Left panel: date nav + timeline + zoom bar
         left_panel = QWidget()
@@ -48,6 +49,13 @@ class MainWindow(QMainWindow):
         # Zoom bar
         zoom_bar = QHBoxLayout()
         zoom_bar.setContentsMargins(4, 2, 4, 2)
+
+        # Panel toggle button (bottom-left)
+        self._btn_toggle_panel = QPushButton("◀")
+        self._btn_toggle_panel.setFixedWidth(30)
+        self._btn_toggle_panel.setToolTip("リストパネルを表示/非表示")
+        zoom_bar.addWidget(self._btn_toggle_panel)
+
         btn_out = QPushButton("-")
         btn_out.setFixedWidth(30)
         self._zoom_label = QLabel("75%")
@@ -62,6 +70,8 @@ class MainWindow(QMainWindow):
         zoom_bar.addWidget(btn_in)
         zoom_bar.addStretch()
         left_layout.addLayout(zoom_bar)
+        from PySide6.QtWidgets import QLayout
+        left_layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
 
         btn_out.clicked.connect(timeline_view.zoom_out)
         btn_in.clicked.connect(timeline_view.zoom_in)
@@ -115,13 +125,31 @@ class MainWindow(QMainWindow):
         status_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         status_label.setContentsMargins(4, 6, 4, 6)
         right_layout.addWidget(status_label)
+        from PySide6.QtWidgets import QLayout
+        right_layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
 
+        self._right_panel = right_panel
         splitter.addWidget(right_panel)
         splitter.setSizes([400, 800])
         splitter.setStretchFactor(0, 0)  # left panel: fixed width
         splitter.setStretchFactor(1, 1)  # right panel: stretches
+        self._saved_splitter_sizes = [400, 800]
+
+        # Override minimumSizeHint on panels so QSplitter does not enforce
+        # the children's natural minimum (~918px combined).  This lets the
+        # window shrink freely to reach the auto-toggle threshold.
+        from PySide6.QtCore import QSize
+        _zero = QSize(0, 0)
+        right_panel.minimumSizeHint = lambda: _zero
+        left_panel.minimumSizeHint = lambda: _zero
 
         self.setCentralWidget(splitter)
+
+        # Panel toggle: connect and apply initial state from settings
+        self._btn_toggle_panel.clicked.connect(self._toggle_panel)
+        self._timeline_only = False
+        if s.get("timeline_only_mode", False):
+            QTimer.singleShot(0, lambda: self._apply_panel_mode(True, save=False))
 
         # System tray
         self._tray = QSystemTrayIcon(self)
@@ -160,6 +188,62 @@ class MainWindow(QMainWindow):
         self._redo_shortcut2.setContext(Qt.ShortcutContext.ApplicationShortcut)
         self._redo_shortcut2.activated.connect(self._on_redo)
 
+    # ウィンドウ幅がこの値を下回ると自動でタイムラインのみモードに切替
+    _PANEL_COLLAPSE_THRESHOLD = 550
+
+    def _toggle_panel(self):
+        self._apply_panel_mode(not self._timeline_only, save=True, resize_window=True)
+
+    def _apply_panel_mode(self, timeline_only: bool, save: bool = False, resize_window: bool = True):
+        self._timeline_only = timeline_only
+        if timeline_only:
+            if resize_window:
+                self._saved_window_size = self.size()
+            self._saved_splitter_sizes = self._splitter.sizes()
+            self._right_panel.hide()
+            self._btn_toggle_panel.setText("▶")
+            self.setMinimumWidth(200)
+            if resize_window:
+                left_width = self._saved_splitter_sizes[0]
+                self.resize(left_width, self.height())
+        else:
+            self._right_panel.show()
+            self._btn_toggle_panel.setText("◀")
+            self.setMinimumWidth(0)
+            if resize_window:
+                saved_size = getattr(self, "_saved_window_size", None)
+                if saved_size:
+                    self.resize(saved_size)
+                else:
+                    self.resize(1200, self.height())
+            sizes = self._saved_splitter_sizes
+            if sizes and sum(sizes) > 0:
+                total = self._splitter.width() or self.width()
+                ratio = total / sum(sizes) if sum(sizes) > 0 else 1.0
+                self._splitter.setSizes([int(s * ratio) for s in sizes])
+            else:
+                w = self.width()
+                self._splitter.setSizes([int(w * 0.33), int(w * 0.67)])
+        if save:
+            from utils.settings import load_settings, save_settings
+            s = load_settings()
+            s["timeline_only_mode"] = timeline_only
+            save_settings(s)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if getattr(self, '_auto_toggling', False):
+            return
+        w = event.size().width()
+        if w < self._PANEL_COLLAPSE_THRESHOLD and not self._timeline_only:
+            self._auto_toggling = True
+            self._apply_panel_mode(True, save=True, resize_window=False)
+            self._auto_toggling = False
+        elif w >= self._PANEL_COLLAPSE_THRESHOLD and self._timeline_only:
+            self._auto_toggling = True
+            self._apply_panel_mode(False, save=True, resize_window=False)
+            self._auto_toggling = False
+
     def set_controller(self, controller):
         """Set controller for idle check. Call after construction."""
         self._controller = controller
@@ -191,6 +275,10 @@ class MainWindow(QMainWindow):
                 QSystemTrayIcon.MessageIcon.Information,
                 5000,
             )
+
+    def minimumSizeHint(self):
+        from PySide6.QtCore import QSize
+        return QSize(200, 400)
 
     def _on_zoom_changed(self, level: float):
         self._zoom_label.setText(f"{int(level * 100)}%")

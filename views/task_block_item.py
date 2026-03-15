@@ -28,8 +28,8 @@ class TaskBlockItem(QGraphicsRectItem):
     """A draggable, resizable rectangle representing a task on the vertical timeline."""
 
     def __init__(self, task: Task, reference_date: datetime, scene=None):
-        y1 = time_to_y(task.start_time)
-        y2 = time_to_y(task.end_time)
+        y1 = time_to_y(task.start_time, reference_date)
+        y2 = time_to_y(task.end_time, reference_date)
         super().__init__(QRectF(0, 0, BLOCK_WIDTH, y2 - y1))
 
         self.task = task
@@ -242,8 +242,8 @@ class TaskBlockItem(QGraphicsRectItem):
 
     def _apply_visual(self):
         """Update rect position/size to match task times."""
-        new_y = time_to_y(self.task.start_time)
-        new_h = time_to_y(self.task.end_time) - new_y
+        new_y = time_to_y(self.task.start_time, self._reference_date)
+        new_h = time_to_y(self.task.end_time, self._reference_date) - new_y
         self.setPos(self.pos().x(), new_y)
         self.setRect(QRectF(0, 0, BLOCK_WIDTH, new_h))
 

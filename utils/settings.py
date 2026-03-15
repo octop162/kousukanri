@@ -26,6 +26,7 @@ DEFAULTS = {
     "timeline_end_hour": 22,
     "api_server_enabled": False,
     "api_port": 8321,
+    "timeline_only_mode": False,
 }
 
 

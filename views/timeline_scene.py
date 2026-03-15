@@ -169,8 +169,8 @@ class TimelineScene(QGraphicsScene):
                 block.task = task
                 block.setBrush(QBrush(QColor(task.color)))
                 block.setPen(QPen(QColor(task.color).darker(130), 1))
-                new_y = time_to_y(task.start_time)
-                new_h = time_to_y(task.end_time) - new_y
+                new_y = time_to_y(task.start_time, self._reference_date)
+                new_h = time_to_y(task.end_time, self._reference_date) - new_y
                 block.setPos(C.BLOCK_LEFT, new_y)
                 block.setRect(QRectF(0, 0, C.BLOCK_WIDTH, max(new_h, 1)))
                 block.update()

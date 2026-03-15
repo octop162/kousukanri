@@ -48,9 +48,17 @@ def set_zoom_scale(scale: float):
     RULER_TICK_SUB_MINOR = 0 if sub_minor_px < 10 else 5
 
 
-def time_to_y(t: datetime) -> float:
-    """Convert a datetime to a Y pixel coordinate."""
-    midnight = t.replace(hour=0, minute=0, second=0, microsecond=0)
+def time_to_y(t: datetime, reference_date: datetime | None = None) -> float:
+    """Convert a datetime to a Y pixel coordinate.
+
+    reference_date: if provided, elapsed hours are measured from that date's
+    midnight instead of t's own midnight.  Pass this when t may be next-day
+    midnight representing 24:00 of the reference date.
+    """
+    if reference_date is not None:
+        midnight = reference_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        midnight = t.replace(hour=0, minute=0, second=0, microsecond=0)
     elapsed = (t - midnight).total_seconds() / 3600.0
     return (elapsed - TIMELINE_START_HOUR) * PIXELS_PER_HOUR
 

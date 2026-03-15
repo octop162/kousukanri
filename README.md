@@ -77,9 +77,11 @@ uv run python main.py
 cd web && npm run dev
 ```
 
-### ビルド (exe)
+### ビルド
 
-[Nuitka](https://nuitka.net/) で Python なしで実行できる exe を生成できる。
+[Nuitka](https://nuitka.net/) で Python なしで実行できるバイナリを生成できる。
+
+**Windows**
 
 ```powershell
 # 1. Web UI ビルド
@@ -101,6 +103,24 @@ uv run python -m nuitka @nuitkaArgs
 ```
 
 成果物: `dist/main.dist/kousu-kanri-gui.exe`
+
+**macOS**
+
+```bash
+# 1. Web UI ビルド
+cd web && npm run build && cd ..
+
+# 2. GUI ビルド (.app バンドル、static/ 同梱)
+uv run python -m nuitka --standalone --enable-plugin=pyside6 \
+  --macos-create-app-bundle \
+  --include-data-dir=static/=static/ --output-dir=dist \
+  --output-filename=kousu-kanri-gui --assume-yes-for-downloads main.py
+
+# 3. Gatekeeper の quarantine フラグを除去 (初回起動時の警告を回避)
+xattr -d com.apple.quarantine dist/kousu-kanri-gui.app
+```
+
+成果物: `dist/kousu-kanri-gui.app`
 
 > `v*` タグを push すると GitHub Actions で自動ビルド&リリースされる。
 

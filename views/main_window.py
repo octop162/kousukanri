@@ -115,6 +115,8 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(right_panel)
         splitter.setSizes([400, 800])
+        splitter.setStretchFactor(0, 0)  # left panel: fixed width
+        splitter.setStretchFactor(1, 1)  # right panel: stretches
 
         self.setCentralWidget(splitter)
 

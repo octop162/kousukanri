@@ -281,6 +281,22 @@ class MainWindow(QMainWindow):
                 5000,
             )
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not getattr(self, '_dwm_applied', False):
+            self._dwm_applied = True
+            self._apply_dwm()
+
+    def _apply_dwm(self):
+        from utils.settings import load_settings
+        from utils.theme import get_theme_colors
+        from utils.dwm import apply_fluent_effects
+        from PySide6.QtGui import QColor
+        s = load_settings()
+        colors = get_theme_colors(s.get("theme", "dark"))
+        dark = QColor(colors["window"]).lightness() < 128
+        apply_fluent_effects(int(self.winId()), dark=dark)
+
     def minimumSizeHint(self):
         from PySide6.QtCore import QSize
         return QSize(200, 400)
